@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.settings",
+  "include": [
+    "./src",
+    "./test",
+    "./vitest.config.ts",
+    "./knip.ts",
+    "./oxfmt.config.ts",
+    "./oxlint.config.ts",
+    "./package.config.ts"
+  ]
+}

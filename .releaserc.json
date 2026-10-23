@@ -1,0 +1,5 @@
+{
+  "extends": "@sanity/semantic-release-preset",
+  "branches": ["stable", {"name": "main", "prerelease": "beta", "channel": "beta"}],
+  "npmPublish": false
+}

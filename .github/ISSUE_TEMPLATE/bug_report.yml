@@ -1,0 +1,55 @@
+name: Bug report
+description: Something in the Graph tool behaves incorrectly.
+labels: [bug]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you expect, and what did you get instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: How can we reproduce it?
+      description: >
+        Steps, plus the shape of the schema that triggers it. A minimal schema
+        type definition is worth far more than a screenshot.
+      placeholder: |
+        1. Define a document type with …
+        2. Open the Graph tool
+        3. …
+    validations:
+      required: true
+
+  - type: input
+    id: plugin-version
+    attributes:
+      label: Plugin version
+      placeholder: 1.0.0
+    validations:
+      required: true
+
+  - type: input
+    id: sanity-version
+    attributes:
+      label: Sanity version
+      description: Output of `npx sanity versions` (the `sanity` line is enough).
+      placeholder: sanity 6.10.1
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: Node and browser
+      placeholder: Node 22.12, Chrome 141 on macOS
+
+  - type: textarea
+    id: console
+    attributes:
+      label: Console output
+      description: Any errors or warnings the Studio logged. Pasted here it gets formatted automatically.
+      render: text

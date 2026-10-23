@@ -1,0 +1,113 @@
+{
+  "name": "@maciejtrzcinski/sanity-plugin-schema-visualization",
+  "version": "1.0.0",
+  "description": "Sanity Studio tool that visualizes your schema as an interactive canvas of types, fields, options and reference connections",
+  "keywords": [
+    "canvas",
+    "graph",
+    "sanity",
+    "sanity-plugin",
+    "schema",
+    "visualization"
+  ],
+  "homepage": "https://github.com/maciejtrzcinski/sanity-plugin-schema-visualization#readme",
+  "bugs": {
+    "url": "https://github.com/maciejtrzcinski/sanity-plugin-schema-visualization/issues"
+  },
+  "license": "MIT",
+  "author": "Maciej Trzcinski <maciej.jacek.trzcinski@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/maciejtrzcinski/sanity-plugin-schema-visualization.git"
+  },
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "default": "./dist/index.js"
+    },
+    "./registry": {
+      "source": "./src/exports/registry.ts",
+      "default": "./dist/registry.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": "./dist/index.js",
+      "./registry": "./dist/registry.js",
+      "./package.json": "./package.json"
+    },
+    "access": "public"
+  },
+  "scripts": {
+    "build": "plugin-kit verify-package --silent && pkg-utils build --strict --check --clean",
+    "check": "pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run knip && pnpm run test",
+    "dev": "cd dev && sanity dev",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check",
+    "knip": "knip",
+    "link-watch": "plugin-kit link-watch",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
+    "prepublishOnly": "pnpm run build",
+    "size": "size-limit",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p dev",
+    "watch": "pkg-utils watch --strict"
+  },
+  "dependencies": {
+    "@dagrejs/dagre": "^3.1.1",
+    "@sanity/icons": "^5.2.1",
+    "@sanity/ui": "^4.0.5",
+    "@xyflow/react": "^12.11.3"
+  },
+  "devDependencies": {
+    "@sanity/browserslist-config": "^1.0.5",
+    "@sanity/pkg-utils": "^12.3.0",
+    "@sanity/plugin-kit": "^10.0.7",
+    "@sanity/semantic-release-preset": "^6.0.0",
+    "@size-limit/esbuild": "^14.0.0",
+    "@size-limit/file": "^14.0.0",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.7",
+    "@types/react": "^19.2.18",
+    "jsdom": "^30.0.1",
+    "knip": "^6.33.0",
+    "oxfmt": "^0.64.0",
+    "oxlint": "^1.79.0",
+    "oxlint-tsgolint": "^7.0.2001",
+    "prettier": "^3.9.6",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "sanity": "^6.10.1",
+    "semantic-release": "^25.0.9",
+    "size-limit": "^14.0.0",
+    "styled-components": "^6.5.3",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.11"
+  },
+  "peerDependencies": {
+    "react": "^19.2",
+    "react-dom": "^19.2",
+    "sanity": "^5 || ^6.0.0-0",
+    "styled-components": "^6.1"
+  },
+  "browserslist": "extends @sanity/browserslist-config",
+  "engines": {
+    "node": ">=20.19 <22 || >=22.12"
+  },
+  "packageManager": "pnpm@10.4.1",
+  "sanityPlugin": {
+    "verifyPackage": {
+      "tsconfig": false
+    }
+  }
+}

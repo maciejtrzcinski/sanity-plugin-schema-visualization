@@ -1,0 +1,33 @@
+name: Feature request
+description: Suggest a capability the Graph tool should have.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: Describe the situation you hit, not only the feature you have in mind.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What should happen?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: extension-point
+    attributes:
+      label: Can an extension point already do this?
+      description: >
+        The plugin takes custom `kinds`, `filters`, `healthRules` and
+        `fieldDescribers` — see docs/extending.md. If one of them
+        nearly works, say which and where it falls short.
+      options:
+        - I checked, none of them cover it
+        - One nearly works but falls short (explained above)
+        - I have not checked
+    validations:
+      required: true

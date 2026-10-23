@@ -1,0 +1,100 @@
+name: Release
+
+on:
+  workflow_dispatch:
+  push:
+    # `main` publishes betas (.releaserc.json). `stable` is a placeholder:
+    # semantic-release won't run without a non-prerelease branch on the remote.
+    # When the beta graduates, make `main` the release branch in .releaserc.json
+    # and delete `stable`.
+    branches: [main]
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    # `main` only, because a manual run can be started on any branch, and one on
+    # `stable` would publish 1.0.0 to `latest`. `[skip release]` skips commits
+    # that cannot produce a release.
+    if: "github.ref == 'refs/heads/main' &&!contains(github.event.head_commit.message, '[skip release]')"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # create tags, releases, and the changelog commit
+      issues: write # comment on released issues
+      pull-requests: write # comment on released PRs
+      # npm trusted publishing. Until a stage-only trust relationship is set up
+      # on npmjs.com the token exchange fails quietly and staging uses NPM_TOKEN.
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          # `npm stage` needs Node 22.14+.
+          node-version: '24'
+          cache: pnpm
+          # Writes the .npmrc that reads NODE_AUTH_TOKEN in the stage step.
+          registry-url: 'https://registry.npmjs.org'
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm run check
+
+      # semantic-release packs the GitHub release tarball with `npm pack`,
+      # which skips `prepublishOnly`, so `dist/` has to exist before it runs.
+      - run: pnpm run build
+
+      - run: pnpm run size
+
+      # Versions, tags, writes the changelog and cuts the GitHub release, but
+      # doesn't publish (`npmPublish: false` in .releaserc.json): the npm token
+      # is stage-only, so `npm publish` would be refused.
+      - run: pnpm exec semantic-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # A staged version stays private until a maintainer approves it with 2FA:
+      # `npm stage approve <stage-id>`, or Staged Packages on npmjs.com. npm
+      # can't stage a package that isn't on the registry yet, so the very first
+      # version is published by hand from the GitHub release's tarball.
+      - name: Stage on npm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          # Provenance needs a public repository. Once this one is public, add:
+          # NPM_CONFIG_PROVENANCE: true
+        run: |
+          tarball=$(ls .semantic-release/*.tgz 2>/dev/null || true)
+          if [ -z "$tarball" ]; then
+            echo "No new version, nothing to stage."
+            exit 0
+          fi
+          name=$(node -p "require('./package.json').name")
+          version=$(node -p "require('./package.json').version")
+          # 1.0.0-beta.3 → beta; a stable version → latest.
+          tag=latest
+          case "$version" in *-*) tag=${version#*-}; tag=${tag%%.*} ;; esac
+
+          if ! out=$(npm view "$name" name 2>&1); then
+            if echo "$out" | grep -q E404; then
+              echo "::warning::$name isn't on npm yet, so $version can't be staged. Publish it by hand: gh release download v$version --pattern '*.tgz', then npm publish <tarball> --tag $tag --access public"
+              exit 0
+            fi
+            echo "$out"
+            exit 1
+          fi
+
+          # Not `npx npm@…`: @semantic-release/npm puts an `npm` in the tree, so
+          # npx skips the download and runs the runner's bundled npm instead.
+          npm install --global npm@11.19.1
+          npm stage publish "$tarball" --tag "$tag"
+          echo "::notice::$name@$version is staged on the $tag tag. Approve it with 2FA: npm stage approve <stage-id>, or Staged Packages on npmjs.com."

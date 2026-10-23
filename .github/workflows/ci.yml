@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  # Weekly, so a Sanity release that moves something this plugin reads
+  # privately (`schema._original`, `Rule._rules`, the built-in type list) fails
+  # here before a user reports a canvas that quietly changed.
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          # Not the `engines.node` range: that's where a Studio runs the built
+          # plugin. The toolchain needs 24 (`@sanity/plugin-kit`, jsdom, and
+          # oxlint/oxfmt loading their `.ts` configs).
+          node-version: '24'
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # typecheck + lint + format:check + knip + test
+      - run: pnpm run check
+
+      - run: pnpm run build
+
+      # Budgets for what a Studio downloads at boot and on opening the tool —
+      # see `.size-limit.js`.
+      - run: pnpm run size
+
+  sanity-compat:
+    # The test suite compiles real schemas with `createSchema`, so running it
+    # against another `sanity` is what checks the plugin's reads of Sanity's
+    # internals (see `src/compat.ts` and the canaries in `src/compat.test.ts`).
+    # Tests only: the type surface of another major is not this job's concern.
+    name: Tests (sanity@${{ matrix.sanity }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        sanity: ['5', 'latest', 'next']
+    # `next` is Sanity's prerelease line: a failure there is an early warning,
+    # not a broken build.
+    continue-on-error: ${{ matrix.sanity == 'next' }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22.12'
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm add --save-dev sanity@${{ matrix.sanity }}
+
+      - run: node -p "'sanity ' + require('sanity/package.json').version"
+
+      - run: pnpm test
