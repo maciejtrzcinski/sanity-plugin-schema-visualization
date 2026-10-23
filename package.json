@@ -1,6 +1,6 @@
 {
   "name": "@maciejtrzcinski/sanity-plugin-schema-visualization",
-  "version": "1.0.0",
+  "version": "1.0.0-beta.1",
   "description": "Sanity Studio tool that visualizes your schema as an interactive canvas of types, fields, options and reference connections",
   "keywords": [
     "canvas",

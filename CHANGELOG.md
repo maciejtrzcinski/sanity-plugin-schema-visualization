@@ -5,6 +5,12 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 1.0.0-beta.1 (2026-10-23)
+
+### Features
+
+- first beta of the Sanity schema visualization plugin ([ece10b3](https://github.com/maciejtrzcinski/sanity-plugin-schema-visualization/commit/ece10b3c3bf882476ebdc991118cbe026164f9d3))
+
 **1.x is in beta.** Releases ship as `1.0.0-beta.N` on the npm `beta` tag
 (`npm install @maciejtrzcinski/sanity-plugin-schema-visualization@beta`) until
 `1.0.0` is cut. Between betas, built-in registry entries may change shape;
