@@ -112,7 +112,7 @@ export interface FilterDef {
  */
 export type FilterValues = Readonly<Record<string, readonly string[]>>
 
-export const KINDS_FILTER_ID = 'kinds'
+const KINDS_FILTER_ID = 'kinds'
 
 /**
  * Which kinds of type to show. Built from the kind registry rather than a

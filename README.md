@@ -23,8 +23,9 @@ betas; their ids won't. Found a bug?
 
 ```ts
 // sanity.config.ts
-import {defineConfig} from 'sanity'
+
 import {schemaVisualization} from '@maciejtrzcinski/sanity-plugin-schema-visualization'
+import {defineConfig} from 'sanity'
 
 export default defineConfig({
   // ...
@@ -58,7 +59,7 @@ and nothing is saved until you edit it.
 - **Cards** list every field with its type and badges: `required`, `read-only`,
   `hidden`, `conditionally hidden`, `deprecated`, `list (n)`, `layout`,
   `source`, `hotspot`, validation (`min 3 · max 120`, `matches lowercase
-(warning)`), the initial value, and `no create` on a reference with
+  (warning)`), the initial value, and `no create` on a reference with
   `disableNew`. Card headers show `system`, `deprecated` and the doc count.
 - **Arrows**: solid for references, dashed for a reused object type (say an
   `seo` object used in five documents), their own colour for cross-dataset and
@@ -176,17 +177,18 @@ Studio boot instead of quietly doing nothing. The built-in registries are export
 
 The graph functions don't need a running Studio, so a script can print your
 schema as Mermaid or check it for health issues in CI. Run it with
-`npx tsx schema-graph.ts`. This needs a recent `sanity` (tested on 6.19). 6.10
-won't load outside a bundler.
+`npx tsx schema-graph.ts` (tested on `sanity` 6.20).
 
 ```ts
 // schema-graph.ts
-import {createSchema} from 'sanity'
+
 import {
   computeHealthIssues,
   graphToMermaid,
   schemaToGraph,
 } from '@maciejtrzcinski/sanity-plugin-schema-visualization/registry'
+import {createSchema} from 'sanity'
+
 import {schemaTypes} from './schemaTypes'
 
 const graph = schemaToGraph(createSchema({name: 'default', types: schemaTypes}))

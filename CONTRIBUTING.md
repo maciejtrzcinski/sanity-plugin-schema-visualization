@@ -88,9 +88,8 @@ Two things about jsdom are worth knowing before you write one:
   synchronously.
 - **Sanity UI popovers never get positioned**, so a menu or tooltip keeps its
   `hidden` attribute and role queries have to pass `{hidden: true}` to see it.
-  Menu content is mounted up front, closed menus included — check the
-  `MenuButton`'s `aria-expanded` if what you mean to assert is that a menu
-  opened.
+  A menu mounts its items only once it opens (a `MenuGroup` submenu too), so
+  open it before querying them.
 
 The dev Studio is still the place to check anything that depends on real
 browser layout — the SVG export above all.

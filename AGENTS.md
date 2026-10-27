@@ -135,9 +135,9 @@ Two jsdom facts that cause most of the confusion:
   through `waitFor`/`findBy`, never synchronously.** `asyncUtilTimeout` is
   raised to 5s in setup and `testTimeout` to 20s in `vitest.config.ts`.
 - **Sanity UI popovers are never positioned.** A menu or tooltip keeps its
-  `hidden` attribute, so role queries need `{hidden: true}` to see it. Menu
-  content is mounted up front, closed menus included — to assert a menu
-  _opened_, check the `MenuButton`'s `aria-expanded`.
+  `hidden` attribute, so role queries need `{hidden: true}` to see it. A menu
+  mounts its items only once it opens, and a `MenuGroup` submenu only once it
+  opens in turn — click your way to an item before querying it.
 
 Things real browser layout decides — SVG export above all — should be checked in
 the dev Studio, not asserted in jsdom.

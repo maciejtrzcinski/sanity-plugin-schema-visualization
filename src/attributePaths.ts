@@ -15,7 +15,7 @@ import type {AttributePathEstimate} from './types'
  */
 
 /** Stop counting past this many — far beyond any plan's limit, so the answer doesn't change. */
-export const ATTRIBUTE_PATH_CAP = 20_000
+const ATTRIBUTE_PATH_CAP = 20_000
 
 /** Every document carries these. */
 const DOCUMENT_ATTRIBUTES = ['_id', '_type', '_rev', '_createdAt', '_updatedAt']
