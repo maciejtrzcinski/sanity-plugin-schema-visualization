@@ -16,10 +16,16 @@ pnpm install
 pnpm run dev     # boots the dev Studio in dev/ against the local source
 ```
 
-`dev/sanity.config.ts` ships with a placeholder `projectId`. The graph itself
-renders fine without a real project, since it reads the schema, not content. To
-exercise the parts that hit the API — document counts, mainly — run
-`npx sanity init --env` from `dev/` and point it at a project of yours.
+The dev Studio reads its settings from `dev/.env`, which is gitignored:
+
+```sh
+cp dev/.env.example dev/.env
+```
+
+The placeholder `projectId` is enough for the graph, since it reads the schema,
+not content. To exercise the parts that hit the API — document counts, mainly —
+set `SANITY_STUDIO_PROJECT_ID` (and `SANITY_STUDIO_DATASET`) to a project of
+yours. `SANITY_STUDIO_LARGE_SCHEMA=1` loads a 331-type test schema instead.
 
 ## The one command that matters
 

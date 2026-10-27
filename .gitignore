@@ -62,5 +62,10 @@ dist
 # Sanity Studio dev cache
 dev/.sanity
 
+# Local env files; `.env.example` is the committed template
+.env
+.env.*
+!.env.example
+
 # Local review notes
 REVIEW*.md
