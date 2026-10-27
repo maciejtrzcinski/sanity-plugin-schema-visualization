@@ -156,8 +156,8 @@ function handleSides(direction: 'LR' | 'TB'): {
  * switches to {@link layeredLayout}, which keeps the same shape — ranks along
  * the direction, one band per kind — at a cost of milliseconds.
  */
-export const DAGRE_MAX_NODES = 60
-export const DAGRE_MAX_EDGES = 240
+const DAGRE_MAX_NODES = 60
+const DAGRE_MAX_EDGES = 240
 
 /** Which engine {@link layoutGraph} uses for a graph of this size. */
 export function layoutEngineFor(nodeCount: number, edgeCount: number): 'dagre' | 'layered' {

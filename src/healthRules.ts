@@ -352,7 +352,7 @@ type HealthConfig = Pick<ResolvedConfig, 'healthRules' | 'kindById'>
 
 const NO_DOC_COUNTS: ReadonlyMap<string, number> = new Map()
 
-export function buildHealthContext(
+function buildHealthContext(
   graph: SchemaGraph,
   kindById: HealthContext['kindById'] = indexById(defaultNodeKinds),
   t: TranslateFn = defaultTranslate,

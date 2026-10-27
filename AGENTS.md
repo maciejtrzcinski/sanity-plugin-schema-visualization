@@ -92,7 +92,9 @@ pnpm run build      # plugin-kit verify + pkg-utils build
 pnpm run dev        # boot the demo Studio in dev/
 ```
 
-pnpm only (pinned in `packageManager`). Node 20.19+ or 22.12+.
+pnpm only (pinned in `packageManager`). Node 24 for the toolchain; the
+`engines` range (20.19+ or 22.12+) is where a Studio runs the built plugin, and
+jsdom suites won't even start on its floor.
 
 **Before handing work back, run `pnpm run check`.** It is exactly what CI runs
 (plus `pnpm run build`). `knip` is part of it, so an export nothing imports or a
@@ -135,9 +137,9 @@ Two jsdom facts that cause most of the confusion:
   through `waitFor`/`findBy`, never synchronously.** `asyncUtilTimeout` is
   raised to 5s in setup and `testTimeout` to 20s in `vitest.config.ts`.
 - **Sanity UI popovers are never positioned.** A menu or tooltip keeps its
-  `hidden` attribute, so role queries need `{hidden: true}` to see it. Menu
-  content is mounted up front, closed menus included — to assert a menu
-  _opened_, check the `MenuButton`'s `aria-expanded`.
+  `hidden` attribute, so role queries need `{hidden: true}` to see it. A menu
+  mounts its items only once it opens, and a `MenuGroup` submenu only once it
+  opens in turn — click your way to an item before querying it.
 
 Things real browser layout decides — SVG export above all — should be checked in
 the dev Studio, not asserted in jsdom.

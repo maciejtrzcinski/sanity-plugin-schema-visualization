@@ -14,8 +14,6 @@ export default defineConfig({
   'ignoreDependencies': [
     // Consumed by the `browserslist` field in package.json, not by an import.
     '@sanity/browserslist-config',
-    // Referenced by `extends` in .releaserc.json, which knip doesn't follow.
-    '@sanity/semantic-release-preset',
     // Run by that preset's `npx -y prettier` on CHANGELOG.md. Under pnpm, npx
     // sees prettier's transitive copy, skips the download and finds no bin.
     'prettier',

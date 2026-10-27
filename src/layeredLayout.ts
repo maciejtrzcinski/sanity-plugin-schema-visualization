@@ -51,7 +51,7 @@ export interface LayeredOptions {
   clusterSep: number
 }
 
-export interface LayeredBox {
+interface LayeredBox {
   x: number
   y: number
   width: number

@@ -144,8 +144,6 @@ create menu offers the type and the user's grants allow creating one, so a
 singleton removed from `newDocumentOptions` or `schema.templates` gets no link.
 
 ```ts
-import {PinIcon} from '@sanity/icons'
-import {isDocumentSchemaType} from 'sanity'
 import {schemaVisualization} from '@maciejtrzcinski/sanity-plugin-schema-visualization'
 import {
   documentKind,
@@ -153,6 +151,8 @@ import {
   otherKind,
   type NodeKindDef,
 } from '@maciejtrzcinski/sanity-plugin-schema-visualization/registry'
+import {PinIcon} from '@sanity/icons'
+import {isDocumentSchemaType} from 'sanity'
 
 const SINGLETONS = new Set(['siteSettings', 'homePage'])
 
@@ -405,11 +405,11 @@ Studio's current perspective, empty until someone presses "Load doc counts"
 known yet" rather than as zero.
 
 ```ts
-import {TagIcon} from '@sanity/icons'
 import {
   createDefaultFilters,
   type FilterDef,
 } from '@maciejtrzcinski/sanity-plugin-schema-visualization/registry'
+import {TagIcon} from '@sanity/icons'
 
 const namespaceFilter: FilterDef = {
   id: 'namespace',

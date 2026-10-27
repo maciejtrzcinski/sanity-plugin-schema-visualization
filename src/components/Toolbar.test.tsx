@@ -104,16 +104,16 @@ function props(o: Overrides = {}): ToolbarProps {
   }
 }
 
-/**
- * Opens a `MenuButton`, checking it reports itself open — Sanity UI mounts
- * every menu's content up front (submenus included) and only toggles the
- * popover around it, so the items being in the document proves nothing on its
- * own.
- */
+/** Opens a `MenuButton` — Sanity UI mounts a menu's items only once it opens. */
 async function openMenu(name: RegExp | string): Promise<void> {
   const button = screen.getByRole('button', {name})
   await userEvent.click(button)
   expect(button.getAttribute('aria-expanded')).toBe('true')
+}
+
+/** Opens a `MenuGroup` inside an open menu — its items mount only then, too. */
+async function openSubmenu(name: string): Promise<void> {
+  await userEvent.click(screen.getByRole('button', {name, hidden: true}))
 }
 
 /**
@@ -197,6 +197,7 @@ describe('Toolbar', () => {
       expect(screen.getByText('Document counts')).toBeDefined()
       expect(screen.getByText('Kind')).toBeDefined()
       expect(screen.getByText('Health status')).toBeDefined()
+      await openSubmenu('Document counts')
       expect(menuItem('Only empty')).toBeDefined()
     })
 
@@ -226,6 +227,7 @@ describe('Toolbar', () => {
       renderWithProviders(<Toolbar {...props({onSetFilterValue})} />)
 
       await openMenu('Filter')
+      await openSubmenu('System types')
       await userEvent.click(menuItem('Include system types'))
 
       expect(onSetFilterValue.mock.calls[0][0].id).toBe('system')

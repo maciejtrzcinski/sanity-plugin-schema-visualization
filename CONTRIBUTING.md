@@ -6,8 +6,10 @@ Most contributions only touch the core.
 
 ## Getting set up
 
-The repo uses **pnpm** (pinned via the `packageManager` field) and Node from the
-range in `engines` — Node 20.19+ or 22.12+.
+The repo uses **pnpm** (pinned via the `packageManager` field) and **Node 24**.
+That is the toolchain's requirement (`@sanity/plugin-kit`, jsdom), not the
+plugin's: a Studio running the built plugin needs only the `engines` range,
+Node 20.19+ or 22.12+.
 
 ```sh
 pnpm install
@@ -88,9 +90,8 @@ Two things about jsdom are worth knowing before you write one:
   synchronously.
 - **Sanity UI popovers never get positioned**, so a menu or tooltip keeps its
   `hidden` attribute and role queries have to pass `{hidden: true}` to see it.
-  Menu content is mounted up front, closed menus included — check the
-  `MenuButton`'s `aria-expanded` if what you mean to assert is that a menu
-  opened.
+  A menu mounts its items only once it opens (a `MenuGroup` submenu too), so
+  open it before querying them.
 
 The dev Studio is still the place to check anything that depends on real
 browser layout — the SVG export above all.

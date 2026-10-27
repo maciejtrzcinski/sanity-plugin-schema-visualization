@@ -85,9 +85,10 @@ Keep the diff minimal: one import, one array entry.
 
 ```ts
 // sanity.config.ts
+
+import {schemaVisualization} from '@maciejtrzcinski/sanity-plugin-schema-visualization'
 import {defineConfig} from 'sanity'
 import {structureTool} from 'sanity/structure'
-import {schemaVisualization} from '@maciejtrzcinski/sanity-plugin-schema-visualization'
 
 export default defineConfig({
   // ...
@@ -198,17 +199,18 @@ When you're done, tell the user:
 
 Only if the user asks. The graph and health functions run without a Studio,
 so a script can print the schema as Mermaid or fail CI on health issues. This
-needs `sanity` 6.19 or newer (older 6.x won't load outside a bundler) and
-`tsx` to run it:
+needs `tsx` to run it (tested on `sanity` 6.20):
 
 ```ts
 // schema-graph.ts — run with `npx tsx schema-graph.ts`
-import {createSchema} from 'sanity'
+
 import {
   computeHealthIssues,
   graphToMermaid,
   schemaToGraph,
 } from '@maciejtrzcinski/sanity-plugin-schema-visualization/registry'
+import {createSchema} from 'sanity'
+
 import {schemaTypes} from './schemaTypes'
 
 const graph = schemaToGraph(createSchema({name: 'default', types: schemaTypes}))

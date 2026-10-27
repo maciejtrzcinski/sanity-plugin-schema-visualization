@@ -131,50 +131,49 @@ function TypeNodeComponent({
         )}
       </Box>
 
-      {expanded &&
-        node.fields.length > 0 && (
-          // No height clamp here: `estimateNodeHeight` reserves space for exactly
-          // the rows rendered below, and the two must agree or dagre's spacing
-          // won't match what's painted.
-          <Box padding={2}>
-            <Stack gap={1}>
-              {node.fields.slice(0, MAX_VISIBLE_FIELDS).map((field) => (
-                <Flex key={field.name} align="center" gap={2} padding={1}>
-                  <Text
-                    size={1}
-                    style={{minWidth: 0, flexShrink: 0, fontFamily: 'var(--font-family-monospace)'}}
-                  >
-                    {field.name}
-                  </Text>
-                  <Text size={0} muted textOverflow="ellipsis" style={{flex: 1, minWidth: 0}}>
-                    {field.typeLabel}
-                  </Text>
-                  {field.options.length > 0 && (
-                    <Flex gap={1} flex="none">
-                      {field.options.slice(0, 2).map((opt) => (
-                        <Badge
-                          key={opt.id}
-                          tone={opt.tone === 'default' ? undefined : opt.tone}
-                          fontSize={0}
-                          padding={1}
-                        >
-                          {opt.label}
-                        </Badge>
-                      ))}
-                    </Flex>
-                  )}
-                </Flex>
-              ))}
-              {node.fields.length > MAX_VISIBLE_FIELDS && (
-                <Box padding={1}>
-                  <Text size={0} muted>
-                    {t('card.more-fields', {count: node.fields.length - MAX_VISIBLE_FIELDS})}
-                  </Text>
-                </Box>
-              )}
-            </Stack>
-          </Box>
-        )}
+      {expanded && node.fields.length > 0 && (
+        // No height clamp here: `estimateNodeHeight` reserves space for exactly
+        // the rows rendered below, and the two must agree or dagre's spacing
+        // won't match what's painted.
+        <Box padding={2}>
+          <Stack gap={1}>
+            {node.fields.slice(0, MAX_VISIBLE_FIELDS).map((field) => (
+              <Flex key={field.name} align="center" gap={2} padding={1}>
+                <Text
+                  size={1}
+                  style={{minWidth: 0, flexShrink: 0, fontFamily: 'var(--font-family-monospace)'}}
+                >
+                  {field.name}
+                </Text>
+                <Text size={0} muted textOverflow="ellipsis" style={{flex: 1, minWidth: 0}}>
+                  {field.typeLabel}
+                </Text>
+                {field.options.length > 0 && (
+                  <Flex gap={1} flex="none">
+                    {field.options.slice(0, 2).map((opt) => (
+                      <Badge
+                        key={opt.id}
+                        tone={opt.tone === 'default' ? undefined : opt.tone}
+                        fontSize={0}
+                        padding={1}
+                      >
+                        {opt.label}
+                      </Badge>
+                    ))}
+                  </Flex>
+                )}
+              </Flex>
+            ))}
+            {node.fields.length > MAX_VISIBLE_FIELDS && (
+              <Box padding={1}>
+                <Text size={0} muted>
+                  {t('card.more-fields', {count: node.fields.length - MAX_VISIBLE_FIELDS})}
+                </Text>
+              </Box>
+            )}
+          </Stack>
+        </Box>
+      )}
 
       {node.isLeaf && (
         <Box padding={3}>
