@@ -5,6 +5,12 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.0.0-beta.2](https://github.com/maciejtrzcinski/sanity-plugin-schema-visualization/compare/v1.0.0-beta.1...v1.0.0-beta.2) (2026-10-27)
+
+### Bug Fixes
+
+- **deps:** raise @sanity/ui, @xyflow/react and dagre floors ([3138cc7](https://github.com/maciejtrzcinski/sanity-plugin-schema-visualization/commit/3138cc7526ef33a8644f4b9861a0f8b88f8f8ecb))
+
 ## 1.0.0-beta.1 (2026-10-23)
 
 ### Features
