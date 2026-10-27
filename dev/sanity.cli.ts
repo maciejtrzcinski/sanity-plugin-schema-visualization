@@ -1,9 +1,11 @@
 import {defineCliConfig} from 'sanity/cli'
 
+declare const process: {env: Record<string, string | undefined>}
+
 export default defineCliConfig({
   api: {
-    projectId: 'your-project-id',
-    dataset: 'production',
+    projectId: process.env.SANITY_STUDIO_PROJECT_ID || 'your-project-id',
+    dataset: process.env.SANITY_STUDIO_DATASET || 'production',
   },
   vite: (config) => ({
     ...config,
