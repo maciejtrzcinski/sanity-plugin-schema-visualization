@@ -67,7 +67,9 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: '22.12'
+          # The toolchain's Node, as in `check`: jsdom's undici calls into
+          # `zlib` zstd at load, so on the `engines` floor no jsdom suite starts.
+          node-version: '24'
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile

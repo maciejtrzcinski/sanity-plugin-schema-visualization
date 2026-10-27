@@ -92,7 +92,9 @@ pnpm run build      # plugin-kit verify + pkg-utils build
 pnpm run dev        # boot the demo Studio in dev/
 ```
 
-pnpm only (pinned in `packageManager`). Node 20.19+ or 22.12+.
+pnpm only (pinned in `packageManager`). Node 24 for the toolchain; the
+`engines` range (20.19+ or 22.12+) is where a Studio runs the built plugin, and
+jsdom suites won't even start on its floor.
 
 **Before handing work back, run `pnpm run check`.** It is exactly what CI runs
 (plus `pnpm run build`). `knip` is part of it, so an export nothing imports or a

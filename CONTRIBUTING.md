@@ -6,8 +6,10 @@ Most contributions only touch the core.
 
 ## Getting set up
 
-The repo uses **pnpm** (pinned via the `packageManager` field) and Node from the
-range in `engines` — Node 20.19+ or 22.12+.
+The repo uses **pnpm** (pinned via the `packageManager` field) and **Node 24**.
+That is the toolchain's requirement (`@sanity/plugin-kit`, jsdom), not the
+plugin's: a Studio running the built plugin needs only the `engines` range,
+Node 20.19+ or 22.12+.
 
 ```sh
 pnpm install
