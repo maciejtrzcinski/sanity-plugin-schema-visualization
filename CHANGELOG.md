@@ -5,6 +5,12 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.0.0-beta.3](https://github.com/maciejtrzcinski/sanity-plugin-schema-visualization/compare/v1.0.0-beta.2...v1.0.0-beta.3) (2026-10-28)
+
+### Bug Fixes
+
+- draw edges and kind colours in saturated theme tones ([#3](https://github.com/maciejtrzcinski/sanity-plugin-schema-visualization/issues/3)) ([02357c3](https://github.com/maciejtrzcinski/sanity-plugin-schema-visualization/commit/02357c3f0818b8b3d4af624ba26135d96f3378c8))
+
 ## [1.0.0-beta.2](https://github.com/maciejtrzcinski/sanity-plugin-schema-visualization/compare/v1.0.0-beta.1...v1.0.0-beta.2) (2026-10-27)
 
 ### Bug Fixes
