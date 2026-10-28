@@ -129,6 +129,10 @@ export function duplicates(values: readonly string[]): string[] {
  * follows the Studio theme, with a literal fallback for the canvas export,
  * which rasterizes outside the Studio's CSS scope.
  *
+ * Use a saturated variable such as `--card-badge-primary-dot-color`. The
+ * `-bg-color` variables are the pale fill behind a badge, close enough to the
+ * canvas background that lines and labels drawn in them all but disappear.
+ *
  * @public
  */
 export interface ThemeColor {
