@@ -38,7 +38,7 @@ describe('resolveConfig', () => {
     const crossDataset: EdgeKindDef = {
       id: 'cross-dataset',
       label: 'Cross-dataset reference',
-      color: {cssVar: '--card-badge-caution-bg-color', fallback: '#c8a400'},
+      color: {cssVar: '--card-badge-caution-dot-color', fallback: '#c8a400'},
       dash: '2 2',
       tone: 'caution',
     }

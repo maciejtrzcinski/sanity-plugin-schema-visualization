@@ -43,7 +43,7 @@ export const referenceKind: EdgeKindDef = {
   id: 'reference',
   label: 'Reference field',
   i18n: {label: 'edge-kind.reference.label'},
-  color: {cssVar: '--card-badge-primary-bg-color', fallback: '#2276fc'},
+  color: {cssVar: '--card-badge-primary-dot-color', fallback: '#2276fc'},
   tone: 'primary',
   badgeLabel: (edge, t) =>
     edge.weak ? t('edge-kind.reference.badge-weak') : t('edge-kind.reference.badge'),
@@ -66,7 +66,7 @@ export const externalReferenceKind: EdgeKindDef = {
   id: 'external-reference',
   label: 'Reference to another dataset',
   i18n: {label: 'edge-kind.external-reference.label'},
-  color: {cssVar: '--card-badge-suggest-bg-color', fallback: '#8f57ef'},
+  color: {cssVar: '--card-badge-suggest-dot-color', fallback: '#8f57ef'},
   dash: '6 3',
   tone: 'suggest',
   badgeLabel: (edge, t) =>
@@ -80,7 +80,7 @@ export const reusesKind: EdgeKindDef = {
   id: 'reuses',
   label: 'Reuses named type',
   i18n: {label: 'edge-kind.reuses.label'},
-  color: {cssVar: '--card-badge-default-bg-color', fallback: '#999999'},
+  color: {cssVar: '--card-badge-default-dot-color', fallback: '#999999'},
   dash: '4 3',
   tone: 'default',
   isCatchAll: true,

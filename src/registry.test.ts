@@ -133,8 +133,8 @@ describe('without', () => {
 
 describe('cssColor', () => {
   it('pairs the custom property with its literal fallback', () => {
-    expect(cssColor({cssVar: '--card-badge-primary-bg-color', fallback: '#2276fc'})).toBe(
-      'var(--card-badge-primary-bg-color, #2276fc)',
+    expect(cssColor({cssVar: '--card-badge-primary-dot-color', fallback: '#2276fc'})).toBe(
+      'var(--card-badge-primary-dot-color, #2276fc)',
     )
   })
 })

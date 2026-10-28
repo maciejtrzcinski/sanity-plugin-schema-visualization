@@ -163,7 +163,7 @@ const singletonKind: NodeKindDef = {
   clusterLabel: 'Singletons',
   urlParam: 'single', // short + stable: it ends up in shared links
   tone: 'primary',
-  color: {cssVar: '--card-badge-primary-bg-color', fallback: '#2276fc'},
+  color: {cssVar: '--card-badge-primary-dot-color', fallback: '#2276fc'},
   icon: PinIcon,
   classify: (type) => isDocumentSchemaType(type) && SINGLETONS.has(type.name),
   countsDocuments: true,
@@ -201,7 +201,7 @@ import {
 const annotationKind: EdgeKindDef = {
   id: 'annotation',
   label: 'Portable Text annotation',
-  color: {cssVar: '--card-badge-caution-bg-color', fallback: '#c8a400'},
+  color: {cssVar: '--card-badge-caution-dot-color', fallback: '#c8a400'},
   dash: '1 3',
   tone: 'caution',
   // Optional: defaults to the kind id, which is already what you want here.
