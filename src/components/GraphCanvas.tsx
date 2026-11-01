@@ -8,7 +8,9 @@ import {
   Panel,
   ReactFlow,
   ReactFlowProvider,
+  getViewportForBounds,
   useReactFlow,
+  useStoreApi,
   ViewportPortal,
   type NodeChange,
 } from '@xyflow/react'
@@ -47,6 +49,24 @@ const CANVAS_CLASS = 'sv-canvas'
 const CONTROLS_BUTTON_SIZE = 30
 /** React Flow's default margin around a `Panel`. */
 const PANEL_MARGIN = 15
+
+const FIT_PADDING = 0.2
+/** A lone type or a pair would otherwise fill the canvas at the 1.5× maximum. */
+const NEIGHBOURHOOD_MAX_ZOOM = 1
+/** Clears the zoom controls and the export bar, one button deep along the left and bottom edges. */
+const NEIGHBOURHOOD_MARGIN = CONTROLS_BUTTON_SIZE + 2 * PANEL_MARGIN
+
+/**
+ * How much of the canvas's right edge the legend and minimap cover. Measured,
+ * because the legend is as wide as its labels in the Studio's language.
+ */
+function rightPanelsWidth(domNode: Element | null): number {
+  let width = 0
+  for (const panel of domNode?.querySelectorAll<HTMLElement>('.react-flow__panel.right') ?? []) {
+    width = Math.max(width, panel.offsetWidth)
+  }
+  return width && width + PANEL_MARGIN
+}
 
 /**
  * How far up from the canvas's bottom edge the zoom controls reach — what an
@@ -260,11 +280,13 @@ function GraphCanvasInner({
   const issueCountsRef = useRef({issueCountByNodeId, warningCountByNodeId})
   const visibleGraphRef = useRef(visibleGraph)
   const relayoutTokenRef = useRef(relayoutToken)
+  const selectedNodeIdRef = useRef(selectedNodeId)
   useEffect(() => {
     expandedNodeIdsRef.current = expandedNodeIds
     annotationsRef.current = annotations
     issueCountsRef.current = {issueCountByNodeId, warningCountByNodeId}
     visibleGraphRef.current = visibleGraph
+    selectedNodeIdRef.current = selectedNodeId
   })
   const visibleShape = useMemo(() => shapeKey(visibleGraph), [visibleGraph])
 
@@ -372,17 +394,64 @@ function GraphCanvasInner({
     estimate,
   ])
 
-  // `fitView` on <ReactFlow> only runs once, on mount — re-fit whenever the
-  // node set actually changes (filters, focus mode, direction, re-layout) so
-  // newly shown/hidden content isn't left off-screen or under the minimap.
-  const {fitView} = useReactFlow()
+  // Frames a type and everything it connects to, so the connections the detail
+  // panel lists are all in view, none of them under the legend or minimap.
+  // From the controller's boxes rather than `fitView({nodes})`, which skips
+  // cards React Flow hasn't measured — and with culling on, an off-screen
+  // neighbour has never rendered.
+  const {fitView, setViewport} = useReactFlow()
+  const flowStore = useStoreApi()
   const reducedMotion = usePrefersReducedMotion()
+  const duration = reducedMotion ? 0 : 300
+  const frameNeighbourhood = useCallback(
+    (nodeId: string): boolean => {
+      const bounds = controller.neighbourhoodBounds(nodeId)
+      if (!bounds) return false
+      const {width, height, minZoom, domNode} = flowStore.getState()
+      const margin = `${NEIGHBOURHOOD_MARGIN}px` as const
+      const padding = {
+        top: margin,
+        bottom: margin,
+        left: margin,
+        right: `${NEIGHBOURHOOD_MARGIN + rightPanelsWidth(domNode)}px` as const,
+      }
+      void setViewport(
+        getViewportForBounds(bounds, width, height, minZoom, NEIGHBOURHOOD_MAX_ZOOM, padding),
+        {duration},
+      )
+      return true
+    },
+    [controller, flowStore, setViewport, duration],
+  )
+
+  // `fitView` on <ReactFlow> only runs once, on mount — re-frame whenever the
+  // node set actually changes (filters, focus mode, direction, re-layout) so
+  // newly shown/hidden content isn't left off-screen or under the minimap. A
+  // selection keeps the frame on its neighbourhood, which is also what a
+  // shared link to a selected type opens on.
   useEffect(() => {
     if (layoutVersion === 0) return undefined
-    const duration = reducedMotion ? 0 : 300
-    const id = window.requestAnimationFrame(() => fitView({duration, padding: 0.2}))
+    const id = window.requestAnimationFrame(() => {
+      const selected = selectedNodeIdRef.current
+      if (!selected || !frameNeighbourhood(selected)) void fitView({duration, padding: FIT_PADDING})
+    })
     return () => window.cancelAnimationFrame(id)
-  }, [layoutVersion, fitView, reducedMotion])
+  }, [layoutVersion, fitView, frameNeighbourhood, duration])
+
+  // Two frames out: opening the detail panel narrows the canvas, and React
+  // Flow only reads its new width from a ResizeObserver after the next layout.
+  // Clearing the selection leaves the viewport where the user has it.
+  useEffect(() => {
+    if (!selectedNodeId) return undefined
+    let second: number | undefined
+    const first = window.requestAnimationFrame(() => {
+      second = window.requestAnimationFrame(() => frameNeighbourhood(selectedNodeId))
+    })
+    return () => {
+      window.cancelAnimationFrame(first)
+      if (second !== undefined) window.cancelAnimationFrame(second)
+    }
+  }, [selectedNodeId, frameNeighbourhood])
 
   const onNodesChange = useCallback(
     (changes: NodeChange<FlowNode>[]) => {

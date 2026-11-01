@@ -179,9 +179,24 @@ describe('GraphCanvas', () => {
     rerender(<GraphCanvas {...props({selectedNodeId: null})} />)
     await animationFrames(3)
 
-    // A re-layout would also re-frame the viewport, throwing away the user's
-    // pan and zoom on every click.
+    // Selecting re-frames the viewport, but without a dagre pass: on a large
+    // schema that is what made a click freeze.
     expect(rebuild).toHaveBeenCalledTimes(settled)
+  })
+
+  it('frames a selected type with what it connects to, and stays put once it is cleared', async () => {
+    const {rerender} = renderWithProviders(<GraphCanvas {...props()} />)
+    await waitForNodes(['post', 'author', 'seo'])
+    await animationFrames(2)
+    const whole = viewportTransform()
+
+    rerender(<GraphCanvas {...props({selectedNodeId: 'author'})} />)
+    await waitFor(() => expect(viewportTransform()).not.toBe(whole))
+    const framed = viewportTransform()
+
+    rerender(<GraphCanvas {...props({selectedNodeId: null})} />)
+    await animationFrames(3)
+    expect(viewportTransform()).toBe(framed)
   })
 
   it('does not re-run the layout when the filter context is rebuilt with the same issues', async () => {
@@ -248,6 +263,10 @@ describe('GraphCanvas', () => {
 })
 
 /** Resolves after `count` animation frames — the layout effect spans two. */
+function viewportTransform(): string {
+  return document.querySelector<HTMLElement>('.react-flow__viewport')!.style.transform
+}
+
 async function animationFrames(count: number): Promise<void> {
   const frames = (left: number): Promise<void> =>
     left === 0

@@ -1,8 +1,8 @@
-import {applyNodeChanges, MarkerType, type NodeChange} from '@xyflow/react'
+import {applyNodeChanges, MarkerType, type NodeChange, type Rect} from '@xyflow/react'
 
 import type {EdgeKindDef} from './edgeKinds'
 import type {FlowEdge, FlowNode, TypeNodeData} from './flowModel'
-import {layoutGraph, reflowHeights, type ClusterBox, type HeightOf} from './layout'
+import {layoutGraph, NODE_WIDTH, reflowHeights, type ClusterBox, type HeightOf} from './layout'
 import {NO_ANNOTATIONS, sameAnnotations, type NodeAnnotations} from './nodeAnnotations'
 import {cssColor} from './registry'
 import type {GraphEdgeKind, SchemaGraph} from './types'
@@ -383,6 +383,33 @@ export class LayoutController {
   /** Forgets every manual placement — what an explicit "re-layout" means. */
   forgetDragged(): void {
     this.draggedPositions.clear()
+  }
+
+  /**
+   * The box around a card and every card it shares an edge with, where they
+   * sit now — what selecting a type frames. Null while the card isn't on the
+   * canvas: a selection that brings back a filtered-out type waits for the
+   * re-layout that places it.
+   */
+  neighbourhoodBounds(nodeId: string): Rect | null {
+    if (!this.current.nodes.some((n) => n.id === nodeId)) return null
+    const ids = new Set([nodeId])
+    for (const edge of this.current.edges) {
+      if (edge.source === nodeId) ids.add(edge.target)
+      if (edge.target === nodeId) ids.add(edge.source)
+    }
+    let left = Infinity
+    let top = Infinity
+    let right = -Infinity
+    let bottom = -Infinity
+    for (const node of this.current.nodes) {
+      if (!ids.has(node.id)) continue
+      left = Math.min(left, node.position.x)
+      top = Math.min(top, node.position.y)
+      right = Math.max(right, node.position.x + NODE_WIDTH)
+      bottom = Math.max(bottom, node.position.y + (this.heights.get(node.id) ?? 0))
+    }
+    return {x: left, y: top, width: right - left, height: bottom - top}
   }
 
   /** Measured height when there is one, the caller's estimate otherwise. */
