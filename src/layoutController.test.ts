@@ -4,6 +4,7 @@ import {describe, expect, it, vi} from 'vitest'
 import {authorEdge, graph, makeNode, seoEdge} from '../test/fixtures'
 import {catchAllEdgeKind, defaultEdgeKinds} from './edgeKinds'
 import type {FlowNode} from './flowModel'
+import {NODE_WIDTH} from './layout'
 import {LayoutController, type CardOptions, type RebuildOptions} from './layoutController'
 import {indexById} from './registry'
 import type {SchemaGraph} from './types'
@@ -247,5 +248,42 @@ describe('LayoutController', () => {
 
     const relaid = controller.rebuild(stacked, rebuildOptions({direction: 'TB'}))
     expect(relaid.nodes.find((n) => n.id === 'a')!.position).toEqual({x: 42, y: 24})
+  })
+
+  it('frames a card with every card it shares an edge with, and nothing else', () => {
+    const controller = new LayoutController()
+    const at = positionsById(controller.rebuild(graph, rebuildOptions()).nodes)
+    const box = (ids: string[]) => {
+      const xs = ids.map((id) => at.get(id)!.x)
+      const ys = ids.map((id) => at.get(id)!.y)
+      const [x, y] = [Math.min(...xs), Math.min(...ys)]
+      return {x, y, width: Math.max(...xs) + NODE_WIDTH - x, height: Math.max(...ys) + EXPANDED - y}
+    }
+
+    // `seo` hangs off `post` too, but not off `author`, so it widens one frame only.
+    expect(box(['author', 'post'])).not.toEqual(box(['post', 'author', 'seo']))
+    expect(controller.neighbourhoodBounds('author')).toEqual(box(['author', 'post']))
+    expect(controller.neighbourhoodBounds('post')).toEqual(box(['post', 'author', 'seo']))
+  })
+
+  it('frames a lone card by itself, where the user dragged it', () => {
+    const controller = new LayoutController()
+    controller.rebuild(stacked, rebuildOptions())
+    controller.applyChanges([{id: 'a', type: 'position', position: {x: 42, y: 24}}])
+
+    expect(controller.neighbourhoodBounds('a')).toEqual({
+      x: 42,
+      y: 24,
+      width: NODE_WIDTH,
+      height: EXPANDED,
+    })
+  })
+
+  it('has nothing to frame for a card that is not on the canvas', () => {
+    const controller = new LayoutController()
+    expect(controller.neighbourhoodBounds('post')).toBeNull()
+
+    controller.rebuild(stacked, rebuildOptions())
+    expect(controller.neighbourhoodBounds('post')).toBeNull()
   })
 })
