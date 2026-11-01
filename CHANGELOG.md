@@ -5,6 +5,12 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.0.0-beta.4](https://github.com/maciejtrzcinski/sanity-plugin-schema-visualization/compare/v1.0.0-beta.3...v1.0.0-beta.4) (2026-11-01)
+
+### Features
+
+- move the viewport to a selected type and its connections ([#4](https://github.com/maciejtrzcinski/sanity-plugin-schema-visualization/issues/4)) ([0c2f711](https://github.com/maciejtrzcinski/sanity-plugin-schema-visualization/commit/0c2f7114bd736d29c33e3701104aa2e0aa8b7d85))
+
 ## [1.0.0-beta.3](https://github.com/maciejtrzcinski/sanity-plugin-schema-visualization/compare/v1.0.0-beta.2...v1.0.0-beta.3) (2026-10-28)
 
 ### Bug Fixes
