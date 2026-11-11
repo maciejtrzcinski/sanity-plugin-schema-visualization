@@ -4,20 +4,13 @@ import {isAliasOf, isAnonymousType} from './fieldWalker'
 import type {AttributePathEstimate} from './types'
 
 /**
- * Sanity's dataset attribute limit counts unique combinations of path and data
- * type across every document — `sections[].heading` holding a string is one.
- * This walks the schema for every such pair a document *could* write. Real
- * datasets only count paths that hold content, so the estimate is a ceiling
- * for a finite schema, and a floor once a type can contain itself.
- *
- * Paths are kept relative to the type that produces them (`.title`, `[]._key`)
- * so a registered type is walked once and prefixed wherever it's used.
+ * Every path + data-type pair a document could write — the unit of Sanity's
+ * attribute limit. A ceiling for a finite schema, a floor for a recursive one.
  */
 
-/** Stop counting past this many — far beyond any plan's limit, so the answer doesn't change. */
+/** Far beyond any plan's limit. */
 const ATTRIBUTE_PATH_CAP = 20_000
 
-/** Every document carries these. */
 const DOCUMENT_ATTRIBUTES = ['_id', '_type', '_rev', '_createdAt', '_updatedAt']
 
 /** Image and file `media` is only written by the Media Library. */
@@ -29,10 +22,8 @@ const entry = (path: string, jsonType: string) => `${path}${SEPARATOR}${jsonType
 interface Walk {
   isRegistered: (name: string) => boolean
   memo: Map<string, string[]>
-  /** Registered types on the current descent path. */
   stack: Set<string>
   recursive: Set<string>
-  /** Entries produced so far, across every root — the cap's budget. */
   produced: number
   capped: boolean
 }
@@ -48,9 +39,7 @@ function referenceEntries(type: SchemaType): string[] {
 
 function relativeEntries(type: SchemaType, walk: Walk, depth: number): string[] {
   if (walk.capped || depth > 32) return []
-  // Only a type the author registered can be memoised by name: a customised
-  // intrinsic (an `image` with extra fields) shares its name with every other
-  // `image` but not its fields.
+  // A customised intrinsic shares its name (`image`), so only registered types memoise.
   const memoKey = walk.isRegistered(type.name) && !isAnonymousType(type) ? type.name : undefined
   if (memoKey) {
     const cached = walk.memo.get(memoKey)
@@ -86,8 +75,6 @@ function relativeEntries(type: SchemaType, walk: Walk, depth: number): string[] 
     }
   }
 
-  // Array members repeat `[]._key` and `[]._type`; dropping the copies here
-  // keeps them from multiplying everywhere this type is prefixed.
   const unique = [...new Set(entries)]
   walk.produced += unique.length
   if (walk.produced > ATTRIBUTE_PATH_CAP * 10) walk.capped = true
@@ -99,11 +86,6 @@ function relativeEntries(type: SchemaType, walk: Walk, depth: number): string[] 
   return unique
 }
 
-/**
- * Estimates the attribute paths each document type writes, and all of them
- * together. `roots` are the document types; `isRegistered` says which type
- * names the author declared.
- */
 export function estimateAttributePaths(
   roots: readonly SchemaType[],
   isRegistered: (name: string) => boolean,
@@ -124,7 +106,6 @@ export function estimateAttributePaths(
     if (root.name === 'document') continue
     const own = new Set(DOCUMENT_ATTRIBUTES.map((name) => entry(name, 'string')))
     for (const relative of relativeEntries(root, walk, 0)) {
-      // The root's own entry is the document object itself, not a path in it.
       if (relative.startsWith(SEPARATOR)) continue
       own.add(relative.slice(1))
     }

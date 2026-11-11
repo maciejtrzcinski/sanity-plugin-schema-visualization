@@ -41,7 +41,6 @@ function rects(nodes: readonly LayeredNode[], positions: Map<string, {x: number;
   return nodes.map((n) => ({id: n.id, ...positions.get(n.id)!, width: n.width, height: n.height}))
 }
 
-/** The synthetic 331-type page builder, as the canvas would receive it. */
 function largeFlow(): {
   nodes: FlowNode[]
   edges: Array<{id: string; source: string; target: string}>
@@ -111,7 +110,6 @@ describe('layeredLayout', () => {
   })
 
   it('wraps a rank too long to read into several columns', () => {
-    // 40 leaves under one root: one rank of 40 cards, capped per column.
     const nodes = [card('root'), ...Array.from({length: 40}, (_, i) => card(`leaf${i}`))]
     const edges = nodes.slice(1).map((n) => ({source: 'root', target: n.id}))
     const {positions} = layeredLayout(nodes, edges, options('LR'))
@@ -141,7 +139,6 @@ describe('layeredLayout', () => {
   })
 
   it('places the group that points at the others first', () => {
-    // Listed object-first; the documents reference the objects, so they lead.
     const nodes = [card('seo', 'object'), card('post'), card('page')]
     const edges: LayeredEdge[] = [
       {source: 'post', target: 'seo'},
@@ -157,7 +154,6 @@ describe('layoutGraph on a large schema', () => {
   it('switches to the layered engine past the dagre limits', () => {
     expect(layoutEngineFor(7, 9)).toBe('dagre')
     expect(layoutEngineFor(331, 1966)).toBe('layered')
-    // Few types, but densely connected, is just as slow for dagre.
     expect(layoutEngineFor(50, 1000)).toBe('layered')
   })
 
@@ -196,8 +192,7 @@ describe('layoutGraph on a large schema', () => {
     expect(aspect).toBeGreaterThan(0.25)
   })
 
-  // The budget the canvas is held to: dagre took ~50s here. Generous against a
-  // loaded CI box — the layout itself runs in single-digit milliseconds.
+  // dagre took ~50s here; the layout itself runs in milliseconds.
   it('lays out 331 types within 250ms', () => {
     const {nodes, edges} = largeFlow()
     layoutGraph(nodes, edges, 'LR') // warm up the JIT

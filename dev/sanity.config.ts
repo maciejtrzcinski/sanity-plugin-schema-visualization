@@ -14,7 +14,6 @@ export default defineConfig({
   name: 'default',
   title: 'Schema Visualization – Dev Studio',
 
-  // Set in `dev/.env` — see `dev/.env.example`.
   projectId: process.env.SANITY_STUDIO_PROJECT_ID || 'your-project-id',
   dataset: process.env.SANITY_STUDIO_DATASET || 'production',
 
@@ -22,15 +21,11 @@ export default defineConfig({
     structureTool(),
     schemaVisualization({
       documentCounts: true,
-      // One Sanity Lint rule, so the panel shows the adapter at work without
-      // the flood the full set raises on this schema.
       healthRules: [...defaultHealthRules, ...fromSanityLint([missingTitle])],
     }),
   ],
 
-  // `SANITY_STUDIO_LARGE_SCHEMA=1` swaps in the synthetic 331-type page
-  // builder the layout benchmarks run against — the size at which the canvas
-  // has to switch layout engines.
+  // `SANITY_STUDIO_LARGE_SCHEMA=1` swaps in the synthetic 331-type schema.
   schema: {
     types: process.env.SANITY_STUDIO_LARGE_SCHEMA ? largeSchemaTypes() : schemaTypes,
   },

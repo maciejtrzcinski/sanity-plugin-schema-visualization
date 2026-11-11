@@ -9,7 +9,6 @@ import type {GraphNodeKind} from './types'
 
 export interface ClusterBox {
   id: string
-  /** The band's heading is the kind's `clusterLabel`, resolved where it's painted — `ClusterBackgrounds` is the one place that knows the current locale. */
   kind: GraphNodeKind
   x: number
   y: number
@@ -21,7 +20,6 @@ export interface LaidOutGraph<E extends Edge> {
   nodes: FlowNode[]
   edges: E[]
   clusters: ClusterBox[]
-  /** Height reserved per node id, so a later re-flow can tell what changed. */
   heights: Map<string, number>
 }
 
@@ -29,47 +27,24 @@ const NODE_WIDTH = 260
 const FIELD_ROW_HEIGHT = 22
 const FIELD_LIST_PADDING = 16
 
-/**
- * Header metrics, mirroring what `TypeNode` actually paints. The header is a
- * `<Box padding={3}>` holding a title row, an optional second line with the
- * type name, and an optional badge row — one to three stacked lines.
- */
+/** Header metrics, mirroring what `TypeNode` paints. */
 const HEADER_PADDING = 24
-/** Title line; its height comes from the `<Button padding={1}>` expand toggle beside it. */
 const TITLE_ROW_HEIGHT = 32
-/** The muted `node.name` line, rendered only when it differs from the title. */
 const SUBTITLE_ROW_HEIGHT = 20
-/** `marginTop={2}` above the badge row, paid only when the row has something in it. */
 const BADGE_ROW_MARGIN = 8
-/** One line of badges, including the `wrap="wrap"` gap to the line below it. */
 const BADGE_LINE_HEIGHT = 24
-/** Usable width inside the header, i.e. `NODE_WIDTH` minus its `padding={3}`. */
 const BADGE_ROW_WIDTH = NODE_WIDTH - 24
-/** Gap between badges (`gap={1}`). */
 const BADGE_GAP = 4
-/** `<Box padding={3}>` plus one muted line — the "no fields" note every leaf renders. */
 const LEAF_NOTE_HEIGHT = 40
 
-/**
- * How many field rows an expanded card shows before it stops growing. Beyond
- * this the card renders a "+N more" line instead of the remaining rows, so
- * `estimateNodeHeight` and the rendered card agree at every field count.
- */
+/** Past this, an expanded card renders "+N more" instead of rows. */
 export const MAX_VISIBLE_FIELDS = 20
 
-/** Rough rendered width of a badge/label, at ~5.5px per character plus padding. */
 function chipWidth(label: string): number {
   return Math.round(label.length * 5.5) + 16
 }
 
-/**
- * Height of the badge row under the title. `TypeNode` renders whatever the
- * node-badge registry produces — system, deprecated, a doc count, a collapsed
- * card's "N fields · M connections" summary — and lets it wrap on a 260px-wide
- * card, so a card carrying several badges gets two lines. This runs the same
- * registry over the same context rather than restating the built-ins, which is
- * what stops a new badge from silently reserving no room for itself.
- */
+/** Runs the same registry as `TypeNode`, so a new badge can't reserve no room for itself. */
 function badgeRowHeight(
   data: TypeNodeData,
   badges: readonly NodeBadgeDef[],
@@ -84,19 +59,7 @@ function badgeRowHeight(
   return BADGE_ROW_MARGIN + lines * BADGE_LINE_HEIGHT
 }
 
-/**
- * Reserves the height `TypeNode` will paint for this node: the header (title,
- * optional name line, optional badge row), the field list when the card is
- * expanded, and the "no fields" note every leaf type carries. Collapsed cards
- * render no field rows at all — just the header and its one-line summary.
- *
- * These are approximations of Sanity UI's metrics, deliberately erring on the
- * generous side: over-reserving leaves a little dead space between cards,
- * while under-reserving makes dagre pack cards that then overlap on screen.
- * They only have to hold until a card first renders — `GraphCanvas` feeds the
- * heights React Flow measures on the real DOM back into `layoutGraph` and
- * `reflowHeights`, which correct any drift between this model and Sanity UI.
- */
+/** Errs generous: under-reserving overlaps cards. Only holds until the card is first measured. */
 export function estimateNodeHeight(
   data: TypeNodeData,
   badges: readonly NodeBadgeDef[] = defaultNodeBadges,
@@ -109,8 +72,6 @@ export function estimateNodeHeight(
   height += badgeRowHeight(data, badges, t)
 
   if (expanded && fieldCount > 0) {
-    // The "+N more" line occupies one row's worth of height, so an over-long
-    // field list costs exactly MAX_VISIBLE_FIELDS + 1 rows.
     const rows = fieldCount > MAX_VISIBLE_FIELDS ? MAX_VISIBLE_FIELDS + 1 : fieldCount
     height += rows * FIELD_ROW_HEIGHT + FIELD_LIST_PADDING
   }
@@ -122,23 +83,10 @@ export function estimateNodeHeight(
 
 const CLUSTER_PREFIX = 'cluster:'
 
-/**
- * How tall to reserve a node. `layoutGraph` and `reflowHeights` default to
- * {@link estimateNodeHeight}, but a caller that knows better — `GraphCanvas`
- * feeds back the heights React Flow actually measured on the rendered cards —
- * can supply real numbers, so the estimate's hand-mirrored Sanity UI metrics
- * only ever decide a card's very first paint.
- */
 export type HeightOf = (node: FlowNode) => number
 
 const estimatedHeightOf: HeightOf = (node) => estimateNodeHeight(node.data)
 
-/**
- * Which sides of a card its edges leave from and arrive at, for the direction
- * dagre is ranking in. Hardcoding left/right made a `TB` graph draw every edge
- * out of a card's right side and back into the left side of the card directly
- * below it.
- */
 function handleSides(direction: 'LR' | 'TB'): {
   sourcePosition: Position
   targetPosition: Position
@@ -148,18 +96,10 @@ function handleSides(direction: 'LR' | 'TB'): {
     : {sourcePosition: Position.Right, targetPosition: Position.Left}
 }
 
-/**
- * Above this many visible types, or this many connections, dagre stops being
- * interactive: its crossing minimisation grows far faster than the graph
- * (0.5s at 51 types and 292 connections, 13s at 199 and 1,179, 50s at 331 and
- * 1,966 on the synthetic page-builder fixture). Past either line the layout
- * switches to {@link layeredLayout}, which keeps the same shape — ranks along
- * the direction, one band per kind — at a cost of milliseconds.
- */
+/** Past this many types or connections dagre stops being interactive (50s at 331 types). */
 const DAGRE_MAX_NODES = 60
 const DAGRE_MAX_EDGES = 240
 
-/** Which engine {@link layoutGraph} uses for a graph of this size. */
 export function layoutEngineFor(nodeCount: number, edgeCount: number): 'dagre' | 'layered' {
   return nodeCount <= DAGRE_MAX_NODES && edgeCount <= DAGRE_MAX_EDGES ? 'dagre' : 'layered'
 }
@@ -172,15 +112,6 @@ interface Placement {
   clusters: ClusterBox[]
 }
 
-/**
- * Lays out nodes and returns new nodes with `position` set. Nodes are grouped
- * into a "cluster" per `GraphNodeKind` (document / object / other) so
- * same-kind types stay together in their own padded region instead of
- * interleaving — this is what keeps busy graphs from crowding unrelated nodes
- * on top of each other. Small graphs go through dagre; large ones through
- * {@link layeredLayout} (see {@link DAGRE_MAX_NODES}). Edges are returned
- * unchanged: the canvas routes them itself.
- */
 export function layoutGraph<E extends Edge>(
   nodes: FlowNode[],
   edges: E[],
@@ -202,10 +133,7 @@ export function layoutGraph<E extends Edge>(
 
   const laidOutNodes = nodes.map((node) => {
     const {x, y} = placement.topLeft.get(node.id) ?? {x: 0, y: 0}
-    // Keep the existing object when the layout puts the node back where it
-    // already was — same reason as `computeStyledNodes`: `TypeNode` is
-    // `React.memo`'d, so a re-layout that only moves half the graph shouldn't
-    // re-render all of it.
+    // Same object when unmoved: `TypeNode` is memoised.
     if (
       node.position.x === x &&
       node.position.y === y &&
@@ -296,7 +224,6 @@ function placeLayered(
       nodeSep: NODE_SEP,
       rankSep: RANK_SEP,
       clusterPadding: 24,
-      // Room for the band's heading, which `ClusterBackgrounds` paints 10px in.
       clusterLabelHeight: 28,
       clusterSep: RANK_SEP / 2,
     },
@@ -316,25 +243,11 @@ function placeLayered(
   return {topLeft: positions, clusters}
 }
 
-/** Two cards can only collide vertically if their 260px-wide columns overlap. */
 function overlapsHorizontally(a: FlowNode, b: FlowNode): boolean {
   return a.position.x < b.position.x + NODE_WIDTH && b.position.x < a.position.x + NODE_WIDTH
 }
 
-/**
- * Re-flows an already laid-out graph after some cards changed height — a
- * chevron toggled, or doc-count badges arriving — without re-running dagre.
- *
- * Only vertical space is redistributed, and only downstream of what changed: a
- * card that grew pushes down the cards stacked under it, keeping the exact gap
- * dagre chose, and a card that shrank pulls them back up. Every x stays put, so
- * one click can't reshuffle the graph the user is reading, and nothing that
- * isn't below a changed card moves at all.
- *
- * `previousHeights` is what the last layout (or re-flow) reserved; nodes take
- * their new height from `heightOf` — by default `estimateNodeHeight` against
- * their current data, so callers patch node data first and re-flow after.
- */
+/** Redistributes vertical space below changed cards only; every x stays put. */
 export function reflowHeights(
   nodes: FlowNode[],
   previousHeights: Map<string, number>,
@@ -352,8 +265,6 @@ export function reflowHeights(
 
   const oldHeight = (node: FlowNode) => previousHeights.get(node.id) ?? heights.get(node.id)!
 
-  // Sorted by their laid-out top edge, so everything a node can be stacked
-  // under has already been placed by the time it is reached.
   const order = [...nodes].sort((a, b) => a.position.y - b.position.y)
   const newTops = new Map<string, number>()
   for (let i = 0; i < order.length; i++) {
@@ -364,9 +275,7 @@ export function reflowHeights(
       const above = order[j]
       if (!overlapsHorizontally(node, above)) continue
       const gap = node.position.y - (above.position.y + oldHeight(above))
-      // Negative means dagre already had them overlapping (it lays out around
-      // node centers, not these estimates) — not a stacking relationship worth
-      // preserving.
+      // Negative: dagre already overlapped them (it lays out around centers).
       if (gap < 0) continue
       const candidate = newTops.get(above.id)! + heights.get(above.id)! + gap
       if (!constrained || candidate > top) top = candidate
@@ -381,8 +290,6 @@ export function reflowHeights(
     return {...node, position: {x: node.position.x, y}}
   })
 
-  // Grow (or shrink) each band to keep holding its nodes, with the same
-  // padding dagre gave it.
   const nodesByCluster = new Map<string, FlowNode[]>()
   for (const node of nodes) {
     const id = CLUSTER_PREFIX + node.data.node.kind

@@ -7,11 +7,7 @@ import {NO_ANNOTATIONS, sameAnnotations, type NodeAnnotations} from './nodeAnnot
 import {cssColor} from './registry'
 import type {GraphEdgeKind, SchemaGraph} from './types'
 
-/**
- * Everything the canvas paints, as one object. A controller call returns the
- * *same* object when it changed nothing, so `GraphCanvas` can hand the result
- * straight to `setState` and let React bail out of the render.
- */
+/** A call that changed nothing returns the same object, so React bails out. */
 export interface LayoutState {
   nodes: FlowNode[]
   edges: FlowEdge[]
@@ -20,33 +16,22 @@ export interface LayoutState {
 
 const EMPTY_STATE: LayoutState = {nodes: [], edges: [], clusters: []}
 
-/** The card inputs that change what a card shows without changing the graph's shape. */
 export interface CardOptions {
   compactMode: boolean
-  /** Node ids individually expanded to show full field data, overriding `compactMode`. */
   expandedNodeIds: ReadonlySet<string>
   annotations: ReadonlyMap<string, NodeAnnotations>
   issueCountByNodeId: ReadonlyMap<string, number>
   warningCountByNodeId: ReadonlyMap<string, number>
-  /**
-   * Height to reserve for a card React Flow has not measured yet — normally
-   * `estimateNodeHeight` bound to the live badge registry and locale. The
-   * controller layers the real measurements it collects on top of this.
-   */
   estimate: HeightOf
 }
 
-/** Everything {@link LayoutController.rebuild} needs beyond the graph itself. */
 export interface RebuildOptions extends CardOptions {
   direction: 'LR' | 'TB'
   onToggleExpand: (nodeId: string) => void
-  /** How each connection kind is drawn — `ResolvedConfig.edgeKindById`. */
   edgeKindById: ReadonlyMap<GraphEdgeKind, EdgeKindDef>
-  /** Style for an edge kind the registry doesn't have — `ResolvedConfig.catchAllEdge`. */
   catchAllEdge: EdgeKindDef
 }
 
-/** True when nothing `TypeNode` reads has changed. */
 function sameNodeData(a: TypeNodeData, b: TypeNodeData): boolean {
   return (
     a.node === b.node &&
@@ -55,20 +40,13 @@ function sameNodeData(a: TypeNodeData, b: TypeNodeData): boolean {
     a.connectionCount === b.connectionCount &&
     a.warningCount === b.warningCount &&
     a.infoCount === b.infoCount &&
-    // By value: the annotation map is rebuilt whenever any node's data
-    // arrives, so identity here would re-render every card for one.
+    // By value: the annotation map is rebuilt whenever any node's data arrives.
     sameAnnotations(a.annotations, b.annotations) &&
     a.onToggleExpand === b.onToggleExpand
   )
 }
 
-/**
- * Turns the visible graph into React Flow elements. `previousNodes` holds the
- * nodes from the last build, by id: a node whose data is unchanged is handed
- * back as the same object so `layoutGraph` can see its position is unchanged
- * too, all the way down to `TypeNode`'s `React.memo` — otherwise every filter
- * toggle re-renders every card, including the ones it didn't touch.
- */
+/** An unchanged node comes back as the same object, so `TypeNode`'s memo holds. */
 function buildBaseElements(
   graph: SchemaGraph,
   options: RebuildOptions,
@@ -111,10 +89,7 @@ function buildBaseElements(
       id: node.id,
       type: 'typeNode',
       position: previous?.position ?? {x: 0, y: 0},
-      // Explicit — matches `computeStyledNodes`' comparison, which would
-      // otherwise never find `n.selected === selected` true (undefined never
-      // strictly-equals a computed boolean), silently defeating its identity
-      // preservation for every node, always.
+      // Explicit: `undefined` would defeat `computeStyledNodes`' identity check.
       selected: previous?.selected ?? false,
       data,
     }
@@ -127,11 +102,7 @@ function buildBaseElements(
       id: edge.id,
       source: edge.source,
       target: edge.target,
-      // `FieldEdge`: a smoothstep path with an HTML label.
       type: 'field',
-      // No `label` here — `computeStyledEdges` only shows it for a hovered or
-      // selection-connected edge, so a busy schema isn't wall-to-wall field-name
-      // text (and doesn't pay for a label DOM node per edge) until it's useful.
       data: {fieldName: edge.fieldName},
       style: {
         strokeWidth: 1.5,
@@ -152,13 +123,6 @@ function buildBaseElements(
   return {nodes, edges}
 }
 
-/**
- * Applies the per-node data that changes without the graph's shape changing —
- * one card's expand chevron, annotations (doc counts, anything a consumer
- * adds) arriving for the badges, and health issues moving with them. Nodes it
- * doesn't touch come back as the same objects, and the array itself is
- * returned unchanged when nothing at all differs, so callers can bail out.
- */
 function patchNodeData(nodes: FlowNode[], options: CardOptions): FlowNode[] {
   const {compactMode, expandedNodeIds, annotations, issueCountByNodeId, warningCountByNodeId} =
     options
@@ -185,11 +149,6 @@ function patchNodeData(nodes: FlowNode[], options: CardOptions): FlowNode[] {
   return changed ? next : nodes
 }
 
-/**
- * Puts cards the user dragged back where they left them, so a re-layout
- * triggered by something else (a filter toggle, a direction switch) doesn't
- * silently undo manual placement.
- */
 function restoreDraggedPositions(
   nodes: FlowNode[],
   dragged: Map<string, {x: number; y: number}>,
@@ -203,40 +162,15 @@ function restoreDraggedPositions(
 }
 
 /**
- * Owns what's on the canvas and the rules for changing it, with no React in
- * sight: the laid-out nodes, edges and cluster bands, the height reserved per
- * card, the heights React Flow measured on the real DOM, and the positions the
- * user dragged cards to.
- *
- * `GraphCanvas` is left with "call the controller, schedule frames": it
- * subscribes with `useSyncExternalStore` and every method that changes
- * something publishes the next {@link LayoutState}. The ordering rules between
- * a re-layout and a re-flow (which measurements survive, and which pass owns a
- * compact-mode switch) live here, where they are unit-testable, rather than in
- * comments beside two effects.
+ * What's on the canvas and the rules for changing it, outside React.
+ * `GraphCanvas` subscribes through `useSyncExternalStore`.
  */
 export class LayoutController {
   private current: LayoutState = EMPTY_STATE
-  /** Height the last layout or re-flow reserved per node id. */
   private heights = new Map<string, number>()
-  /**
-   * Heights React Flow actually measured on the rendered cards, by node id.
-   * `estimate` only has to be right for a card's very first paint: once a card
-   * has rendered, its real height lands here (via `measured`) and every later
-   * layout and re-flow uses it instead — so a Sanity UI or font-size change can
-   * drift the estimates without cards silently overlapping. Entries are dropped
-   * when a card's data changes (it's about to render at a different height) or
-   * it leaves the graph.
-   */
+  /** Real heights by node id; dropped when a card's data changes or it leaves the graph. */
   private measuredHeights = new Map<string, number>()
-  /**
-   * Positions the user dragged a card to, kept across re-layouts so a filter
-   * toggle doesn't throw away manual placement. Cleared only by
-   * {@link forgetDragged} — the toolbar's explicit "re-layout" is the one
-   * action that means "forget this".
-   */
   private draggedPositions = new Map<string, {x: number; y: number}>()
-  /** The compact mode {@link current} was built for — see {@link patch}. */
   private compactMode: boolean
   private listeners = new Set<() => void>()
 
@@ -244,10 +178,7 @@ export class LayoutController {
     this.compactMode = compactMode
   }
 
-  /**
-   * Subscribes to the canvas state, for `useSyncExternalStore`. Bound, because
-   * the hook re-subscribes whenever this function's identity changes.
-   */
+  /** Bound: `useSyncExternalStore` re-subscribes when its identity changes. */
   subscribe = (listener: () => void): (() => void) => {
     this.listeners.add(listener)
     return () => {
@@ -255,27 +186,16 @@ export class LayoutController {
     }
   }
 
-  /** The current canvas state, for `useSyncExternalStore`. Stable between changes. */
   getSnapshot = (): LayoutState => this.current
 
   get state(): LayoutState {
     return this.current
   }
 
-  /**
-   * Runs dagre over the visible graph — the full pass, for when the graph's
-   * shape or the layout direction changed. Cards the user dragged keep their
-   * positions; measurements that no longer describe what will render are
-   * dropped first, so the layout sizes those cards by estimate again.
-   */
   rebuild(graph: SchemaGraph, options: RebuildOptions): LayoutState {
     const previousNodes = new Map(this.current.nodes.map((n) => [n.id, n]))
     const {nodes: baseNodes, edges} = buildBaseElements(graph, options, previousNodes)
 
-    // Drop measurements that no longer describe what will render: cards that
-    // left the graph, and cards whose data changed (`buildBaseElements` hands
-    // back the previous object only when nothing did). The rest feed the
-    // layout their real heights.
     const present = new Set(baseNodes.map((n) => n.id))
     for (const id of this.measuredHeights.keys()) {
       if (!present.has(id)) this.measuredHeights.delete(id)
@@ -299,20 +219,10 @@ export class LayoutController {
     })
   }
 
-  /**
-   * Absorbs a change to what some cards render — a chevron toggled, or
-   * annotations and the health issues they raise arriving — without re-running
-   * dagre: the cards are patched in place and the re-flow pushes whatever sits
-   * below them up or down, rather than re-laying-out (and re-framing) a graph
-   * whose shape didn't change.
-   */
   patch(options: CardOptions): LayoutState {
     const {compactMode, estimate} = options
 
-    // A compact-mode switch resizes every card at once and resets the per-node
-    // overrides, which is a `rebuild` — don't also re-flow the old positions
-    // underneath it. The caller runs both paths for that change; this one
-    // declines, and the rebuild that follows is what adopts the new mode.
+    // A compact-mode switch is a `rebuild`; this declines, and the rebuild adopts the mode.
     if (this.compactMode !== compactMode) {
       this.compactMode = compactMode
       return this.current
@@ -322,9 +232,6 @@ export class LayoutController {
     const patched = patchNodeData(nodes, options)
     if (patched === nodes) return this.current
 
-    // A patched card renders new content, so its old measurement is stale —
-    // this re-flow sizes it by estimate, and the measurement that follows the
-    // re-render corrects the stack via `measured` + `reflow`.
     for (let i = 0; i < patched.length; i++) {
       if (patched[i] !== nodes[i]) this.measuredHeights.delete(patched[i].id)
     }
@@ -332,21 +239,10 @@ export class LayoutController {
     return this.reflowFrom(patched, estimate)
   }
 
-  /**
-   * Re-flows the current cards against the heights measured so far. Callers
-   * debounce this to one pass per frame: a mount measures every visible card
-   * in a burst.
-   */
   reflow(estimate: HeightOf): LayoutState {
     return this.reflowFrom(this.current.nodes, estimate)
   }
 
-  /**
-   * Records what React Flow reports about the rendered cards — where a drag
-   * left one, and how tall each actually is — and applies the changes to the
-   * nodes. `remeasured` is true when a height disagreed with what was on
-   * record, i.e. when a {@link reflow} is owed.
-   */
   applyChanges(changes: NodeChange<FlowNode>[]): {state: LayoutState; remeasured: boolean} {
     let remeasured = false
     for (const change of changes) {
@@ -363,11 +259,7 @@ export class LayoutController {
     return {state, remeasured}
   }
 
-  /**
-   * Records the height React Flow measured on a rendered card. Rounded, so
-   * sub-pixel jitter can't retrigger the re-flow forever; returns true when
-   * this is news.
-   */
+  /** Rounded, so sub-pixel jitter can't retrigger the re-flow forever. */
   measured(id: string, height: number): boolean {
     const rounded = Math.round(height)
     if (this.measuredHeights.get(id) === rounded) return false
@@ -375,22 +267,14 @@ export class LayoutController {
     return true
   }
 
-  /** Records where the user dropped a card, for the next {@link rebuild}. */
   dragged(id: string, position: {x: number; y: number}): void {
     this.draggedPositions.set(id, position)
   }
 
-  /** Forgets every manual placement — what an explicit "re-layout" means. */
   forgetDragged(): void {
     this.draggedPositions.clear()
   }
 
-  /**
-   * The box around a card and every card it shares an edge with, where they
-   * sit now — what selecting a type frames. Null while the card isn't on the
-   * canvas: a selection that brings back a filtered-out type waits for the
-   * re-layout that places it.
-   */
   neighbourhoodBounds(nodeId: string): Rect | null {
     if (!this.current.nodes.some((n) => n.id === nodeId)) return null
     const ids = new Set([nodeId])
@@ -412,7 +296,6 @@ export class LayoutController {
     return {x: left, y: top, width: right - left, height: bottom - top}
   }
 
-  /** Measured height when there is one, the caller's estimate otherwise. */
   private heightOf(estimate: HeightOf): HeightOf {
     return (node) => this.measuredHeights.get(node.id) ?? estimate(node)
   }
@@ -435,7 +318,6 @@ export class LayoutController {
     })
   }
 
-  /** Publishes the next state to whoever is subscribed. */
   private commit(state: LayoutState): LayoutState {
     this.current = state
     for (const listener of this.listeners) listener()

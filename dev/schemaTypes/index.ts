@@ -19,8 +19,7 @@ import {socialLink} from './socialLink'
 import {testimonial} from './testimonial'
 import {textSection} from './textSection'
 
-// Types and fields marked "Health demo" break a health rule on purpose, so the
-// Health panel has something to show.
+// Types and fields marked "Health demo" break a health rule on purpose.
 export const schemaTypes: SchemaTypeDefinition[] = [
   post,
   author,

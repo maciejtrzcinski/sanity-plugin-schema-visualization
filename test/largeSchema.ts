@@ -1,11 +1,4 @@
-/**
- * A synthetic schema at the size where layout cost starts to matter: a
- * multi-brand page builder with 100+ document types, 200+ section and object
- * types, references between documents, sections reused across pages, and
- * portable text whose annotations point at documents. Deterministic — the same
- * arguments always produce the same schema — so timings and snapshots taken
- * against it are comparable run to run.
- */
+/** A deterministic synthetic schema at the size where layout cost matters (331 types). */
 import {createSchema, defineField, defineType, type Schema, type SchemaTypeDefinition} from 'sanity'
 
 export interface LargeSchemaSize {
@@ -16,7 +9,6 @@ export interface LargeSchemaSize {
 
 export const LARGE_SCHEMA_SIZE: LargeSchemaSize = {documents: 110, sections: 140, objects: 80}
 
-/** Park–Miller: small, seedable, and the same in every runtime. */
 function random(seed: number): () => number {
   let state = seed
   return () => {
@@ -29,7 +21,6 @@ export function largeSchema(size: LargeSchemaSize = LARGE_SCHEMA_SIZE, seed = 42
   return createSchema({name: 'large', types: largeSchemaTypes(size, seed)})
 }
 
-/** The type definitions behind {@link largeSchema}, for a Studio to register. */
 export function largeSchemaTypes(
   size: LargeSchemaSize = LARGE_SCHEMA_SIZE,
   seed = 42,
@@ -51,7 +42,6 @@ export function largeSchemaTypes(
       fields: [
         defineField({name: 'label', type: 'string'}),
         defineField({name: 'image', type: 'image', options: {hotspot: true}}),
-        // Every fourth object nests another, so some chains run deep.
         ...(i % 4 === 0 && i + 1 < objectNames.length
           ? [defineField({name: 'child', type: objectNames[i + 1]})]
           : []),

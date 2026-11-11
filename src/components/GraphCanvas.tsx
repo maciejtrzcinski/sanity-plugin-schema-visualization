@@ -47,19 +47,12 @@ const EDGE_TYPES = {field: FieldEdge}
 const CANVAS_CLASS = 'sv-canvas'
 
 const CONTROLS_BUTTON_SIZE = 30
-/** React Flow's default margin around a `Panel`. */
 const PANEL_MARGIN = 15
 
 const FIT_PADDING = 0.2
-/** A lone type or a pair would otherwise fill the canvas at the 1.5× maximum. */
 const NEIGHBOURHOOD_MAX_ZOOM = 1
-/** Clears the zoom controls and the export bar, one button deep along the left and bottom edges. */
 const NEIGHBOURHOOD_MARGIN = CONTROLS_BUTTON_SIZE + 2 * PANEL_MARGIN
 
-/**
- * How much of the canvas's right edge the legend and minimap cover. Measured,
- * because the legend is as wide as its labels in the Studio's language.
- */
 function rightPanelsWidth(domNode: Element | null): number {
   let width = 0
   for (const panel of domNode?.querySelectorAll<HTMLElement>('.react-flow__panel.right') ?? []) {
@@ -68,24 +61,12 @@ function rightPanelsWidth(domNode: Element | null): number {
   return width && width + PANEL_MARGIN
 }
 
-/**
- * How far up from the canvas's bottom edge the zoom controls reach — what an
- * overlay in the left-hand corner has to stop short of to keep them clickable.
- */
 export const CONTROLS_CLEARANCE = PANEL_MARGIN + 3 * CONTROLS_BUTTON_SIZE
 
 /**
- * Selection and search dimming, driven by the classes `computeStyledNodes` and
- * `computeStyledEdges` put on the few elements a change touches — see
- * `DIM_CLASSES` for why this is a stylesheet rather than per-card state.
- *
- * No opacity transition: an animating element gets a compositing layer of its
- * own, and fading a large schema's every card and edge at once made Chrome
- * build ~2,300 layers per click — the largest single cost of a selection.
- *
- * The zoom controls are mapped onto the Studio's card colors: React Flow paints
- * their background a fixed light grey but lets the icon inherit the text
- * color, so in a dark Studio they render light-on-light.
+ * No opacity transition: animating every card at once gave Chrome ~2,300
+ * compositing layers per click. Zoom controls take the Studio's card colours,
+ * or a dark Studio renders them light-on-light.
  */
 const CANVAS_CSS = `
 .${CANVAS_CLASS}.${DIM_CLASSES.selecting} .react-flow__node:not(.${DIM_CLASSES.lit}),
@@ -120,46 +101,25 @@ const CANVAS_CSS = `
 export interface GraphCanvasProps {
   graph: SchemaGraph
   filters: FilterValues
-  /** Issue counts and connectivity, computed once by `useGraphModel`. */
   filterContext: FilterContext
   direction: 'LR' | 'TB'
   searchQuery: string
   selectedNodeId: string | null
   onSelectNode: (id: string | null) => void
-  /** When set, only this type and its directly connected neighbors are shown. */
   focusNodeId: string | null
-  /** When true, nodes show only their title + connection count by default. */
   compactMode: boolean
-  /** Node ids individually expanded to show full field data, overriding `compactMode`. */
   expandedNodeIds: Set<string>
   onToggleExpand: (nodeId: string) => void
   relayoutToken: number
-  /**
-   * Per-node data loaded after the graph was built, by node id — live document
-   * counts today, whatever a consumer adds tomorrow. The canvas neither
-   * produces nor interprets these: it carries them to the cards, where the
-   * node-badge registry decides what (if anything) they look like.
-   */
   annotations: ReadonlyMap<string, NodeAnnotations>
-  /**
-   * What an SVG export downloads as. Defaults to the bare `schema-graph.svg`;
-   * the tool root passes one scoped to the workspace and dataset so two
-   * Studios' exports don't overwrite each other.
-   */
   exportFileName?: string
 }
 
-/**
- * What a layout pass depends on from the visible graph: which nodes and edges
- * are on it. Selection, search and a rebuilt filter context all produce a new
- * `visibleGraph` object without changing this, and none of them should re-run
- * dagre (or re-frame the viewport the user has panned).
- */
+/** What a layout depends on. Selection, search and a new filter context must not re-run dagre. */
 function shapeKey(graph: SchemaGraph): string {
   return `${graph.nodes.map((n) => n.id).join('\n')}\0${graph.edges.map((e) => e.id).join('\n')}`
 }
 
-/** Restricts a graph to one node plus its directly connected neighbors. */
 function isolateNode(graph: SchemaGraph, focusNodeId: string): SchemaGraph {
   const keep = new Set<string>([focusNodeId])
   for (const edge of graph.edges) {
@@ -197,8 +157,7 @@ function GraphCanvasInner({
     filters: filterDefs,
   } = useConfig()
   const t = useTranslate()
-  // Destructured so the patch effect depends on the issue maps, not on the
-  // context object — which is rebuilt whenever document counts load.
+  // Destructured: the context object is rebuilt whenever document counts load.
   const {issueCountByNodeId, warningCountByNodeId} = filterContext
 
   const visibleGraph = useMemo<SchemaGraph>(() => {
@@ -208,9 +167,7 @@ function GraphCanvasInner({
         .filter((n) => nodeMatchesFilters(n, filters, filterDefs, filterContext))
         .map((n) => n.id),
     )
-    // A focused/selected node stays on the canvas even when the active filters
-    // would otherwise hide it — a filter change never drops the pick (see
-    // `coreReducer`), so the canvas has to keep something for it to point at.
+    // Filters never drop the focus, so the canvas keeps a node for it.
     if (focusNodeId) keep.add(focusNodeId)
     if (selectedNodeId) keep.add(selectedNodeId)
     g = {
@@ -219,8 +176,6 @@ function GraphCanvasInner({
     }
     if (focusNodeId && g.nodes.some((n) => n.id === focusNodeId)) {
       g = isolateNode(g, focusNodeId)
-      // `isolateNode` keeps only the focus node and its neighbours; add back a
-      // selection that fell outside that set so it doesn't dim the whole graph.
       if (selectedNodeId && !g.nodes.some((n) => n.id === selectedNodeId)) {
         const selected = graph.nodes.find((n) => n.id === selectedNodeId)
         if (selected) g = {nodes: [...g.nodes, selected], edges: g.edges}
@@ -245,36 +200,23 @@ function GraphCanvasInner({
     return map
   }, [visibleGraph])
 
-  // What's on the canvas, and every rule for changing it, lives in the
-  // controller — this component only calls it and schedules the frames those
-  // calls run on. It's an external store rather than mirrored state: a call
-  // that changed nothing publishes nothing, and React state can't drift from
-  // what the controller holds.
+  // An external store rather than mirrored state: a no-op call publishes nothing.
   const [controller] = useState(() => new LayoutController(compactMode))
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot)
   const [layoutVersion, setLayoutVersion] = useState(0)
   const [isLayouting, setIsLayouting] = useState(false)
 
-  // `onlyRenderVisibleElements` culls off-screen nodes from the DOM, which is
-  // what makes large schemas pannable/zoomable without lag — but ExportControls
-  // captures the rendered DOM directly, so culling has to be lifted for the
-  // duration of an export or off-screen types would be silently missing from
-  // the PNG.
+  // Export captures the rendered DOM, so culling is lifted while it runs.
   const [cullingSuspended, setCullingSuspended] = useState(false)
   const suspendCulling = useCallback(async () => {
     setCullingSuspended(true)
-    // Wait a couple of frames so the off-screen nodes React Flow mounts in
-    // response actually make it into the DOM before the caller reads it.
     await new Promise<void>((resolve) =>
       requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
     )
   }, [])
   const resumeCulling = useCallback(() => setCullingSuspended(false), [])
 
-  // Latest values the layout effect reads without depending on them: expanding
-  // a card and annotations arriving must not re-run dagre (the patch effect
-  // below handles both), but a layout running for some other reason still has
-  // to build cards from their current state.
+  // Read by the layout effect without depending on them: neither should re-run dagre.
   const expandedNodeIdsRef = useRef(expandedNodeIds)
   const annotationsRef = useRef(annotations)
   const issueCountsRef = useRef({issueCountByNodeId, warningCountByNodeId})
@@ -290,15 +232,12 @@ function GraphCanvasInner({
   })
   const visibleShape = useMemo(() => shapeKey(visibleGraph), [visibleGraph])
 
-  // What a card is worth in height before React Flow has measured it; the
-  // controller prefers the real measurement wherever it has one.
   const estimate = useCallback<HeightOf>(
     (node) => estimateNodeHeight(node.data, nodeBadges, t),
     [nodeBadges, t],
   )
 
-  // Re-flow with the real heights once measurements arrive — debounced to one
-  // pass per frame, since a mount measures every visible card in a burst.
+  // One re-flow per frame: a mount measures every visible card in a burst.
   const measuredReflowFrameRef = useRef<number | undefined>(undefined)
   const scheduleMeasuredReflow = useCallback(() => {
     if (measuredReflowFrameRef.current !== undefined) return
@@ -315,15 +254,8 @@ function GraphCanvasInner({
     [],
   )
 
-  // Re-run the layout when the schema, the set of visible types, layout
-  // direction, compact mode, or an explicit "re-layout" click changes —
-  // otherwise keep positions the user dragged. Keyed on `visibleShape` rather
-  // than the `visibleGraph` object, which is rebuilt on every selection change.
-  // Expanding a card, annotations and health issues stay out of this: the
-  // patch effect below absorbs them without re-framing the graph.
-  //
-  // In an effect, two frames out, so the control that triggered it paints
-  // first: the first frame shows `isLayouting`, the second runs the layout.
+  // Keyed on `visibleShape`, not `visibleGraph`, which is rebuilt on every selection.
+  // Two frames out, so the triggering control paints `isLayouting` first.
   useEffect(() => {
     if (relayoutTokenRef.current !== relayoutToken) {
       relayoutTokenRef.current = relayoutToken
@@ -370,11 +302,6 @@ function GraphCanvasInner({
     estimate,
   ])
 
-  // Expanding one card, annotations arriving, or the health issues they raise
-  // change what some cards render — but not the graph's shape. The controller
-  // patches those cards in place and re-flows what sits below them; it declines
-  // a compact-mode switch, which the layout effect above is already re-running
-  // dagre for.
   useEffect(() => {
     controller.patch({
       compactMode,
@@ -394,11 +321,7 @@ function GraphCanvasInner({
     estimate,
   ])
 
-  // Frames a type and everything it connects to, so the connections the detail
-  // panel lists are all in view, none of them under the legend or minimap.
-  // From the controller's boxes rather than `fitView({nodes})`, which skips
-  // cards React Flow hasn't measured — and with culling on, an off-screen
-  // neighbour has never rendered.
+  // From the controller's boxes: `fitView({nodes})` skips unmeasured (culled) cards.
   const {fitView, setViewport} = useReactFlow()
   const flowStore = useStoreApi()
   const reducedMotion = usePrefersReducedMotion()
@@ -424,11 +347,7 @@ function GraphCanvasInner({
     [controller, flowStore, setViewport, duration],
   )
 
-  // `fitView` on <ReactFlow> only runs once, on mount — re-frame whenever the
-  // node set actually changes (filters, focus mode, direction, re-layout) so
-  // newly shown/hidden content isn't left off-screen or under the minimap. A
-  // selection keeps the frame on its neighbourhood, which is also what a
-  // shared link to a selected type opens on.
+  // `fitView` on <ReactFlow> only runs on mount.
   useEffect(() => {
     if (layoutVersion === 0) return undefined
     const id = window.requestAnimationFrame(() => {
@@ -438,9 +357,7 @@ function GraphCanvasInner({
     return () => window.cancelAnimationFrame(id)
   }, [layoutVersion, fitView, frameNeighbourhood, duration])
 
-  // Two frames out: opening the detail panel narrows the canvas, and React
-  // Flow only reads its new width from a ResizeObserver after the next layout.
-  // Clearing the selection leaves the viewport where the user has it.
+  // Two frames out: React Flow reads the narrowed width from a ResizeObserver.
   useEffect(() => {
     if (!selectedNodeId) return undefined
     let second: number | undefined
@@ -455,9 +372,6 @@ function GraphCanvasInner({
 
   const onNodesChange = useCallback(
     (changes: NodeChange<FlowNode>[]) => {
-      // React Flow reports both the drags to remember across re-layouts and the
-      // heights it measured on the rendered cards; a height that disagrees with
-      // what the layout reserved owes us a re-flow.
       const {remeasured} = controller.applyChanges(changes)
       if (remeasured) scheduleMeasuredReflow()
     },
@@ -470,9 +384,6 @@ function GraphCanvasInner({
   )
   const onPaneClick = useCallback(() => onSelectNode(null), [onSelectNode])
 
-  // An edge's field-name label only shows while hovered (or when it's
-  // connected to the current selection, handled in `computeStyledEdges`) —
-  // see the comment on `computeStyledEdges` for why.
   const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null)
   const onEdgeMouseEnter = useCallback(
     (_: MouseEvent, edge: FlowEdge) => setHoveredEdgeId(edge.id),

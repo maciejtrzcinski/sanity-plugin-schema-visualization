@@ -3,7 +3,6 @@ import type {Rule, SchemaType, SchemaValidationValue} from 'sanity'
 import {reportBrokenAssumption} from './compat'
 import type {FieldConstraint} from './types'
 
-/** What validation statically says about a field. */
 export interface FieldValidation {
   required: boolean
   constraints: FieldConstraint[]
@@ -28,7 +27,6 @@ const CONSTRAINT_FLAGS = new Set([
 
 const NONE: FieldValidation = {required: false, constraints: []}
 
-/** The one member of `validation`'s union that carries validation rules. */
 function isRule(value: SchemaValidationValue): value is Rule {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
@@ -37,11 +35,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
 }
 
-/**
- * Sanity attaches its own async validators to some intrinsic types (every
- * `slug` gets one) and flags them `bypassConcurrencyLimit`. They are not
- * something the author wrote, so they don't count as a `custom` rule.
- */
+/** Sanity's own validators (every `slug` has one) carry `bypassConcurrencyLimit`. */
 function isBuiltInValidator(constraint: unknown): boolean {
   return typeof constraint === 'function' && 'bypassConcurrencyLimit' in constraint
 }
@@ -70,15 +64,7 @@ const sameConstraint = (a: FieldConstraint, b: FieldConstraint) =>
   a.inverted === b.inverted &&
   JSON.stringify(a.value) === JSON.stringify(b.value)
 
-/**
- * Reads a compiled type's validation. `_rules` is `@internal` and deprecated
- * in `@sanity/types`, but it is typed, so it is read through `Rule` rather
- * than `any`: if Sanity drops the field this stops compiling at upgrade time.
- *
- * The runtime guards stay regardless. If the shape doesn't match, the field
- * reads as unconstrained and the mismatch is reported once, since otherwise
- * the `required` badge and the health rules built on it just stop reporting.
- */
+/** `_rules` is internal but typed, so a removal fails the build; runtime guards cover the rest. */
 export function readValidation(type: SchemaType): FieldValidation {
   const missedRules = () =>
     reportBrokenAssumption(
@@ -87,8 +73,6 @@ export function readValidation(type: SchemaType): FieldValidation {
     )
   try {
     const rules = type.validation
-    // A non-array `validation` is a type we were handed uncompiled, not a
-    // change in the Rule shape — nothing to report.
     if (!Array.isArray(rules) || rules.length === 0) return NONE
 
     let sawRuleList = false
@@ -119,8 +103,7 @@ export function readValidation(type: SchemaType): FieldValidation {
         }
       }
     }
-    // Every compiled Rule carries a `_rules` list, even for a field the author
-    // wrote no validation for, so finding none means the shape moved.
+    // Every compiled Rule carries `_rules`, so none at all means the shape moved.
     if (!sawRuleList) missedRules()
     return {required, constraints}
   } catch {

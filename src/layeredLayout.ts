@@ -1,33 +1,11 @@
 /**
- * A layered layout that scales linearly-ish with the schema, for graphs dagre
- * can't lay out in interactive time.
- *
- * dagre's cost is dominated by crossing minimisation over long edges, each of
- * which it threads through a dummy node per rank it spans — on a 331-type
- * page-builder schema with ~2,000 connections that took 50 seconds. And the
- * canvas throws that work away: React Flow routes every edge itself, so all
- * that is used from a layout is where the cards go.
- *
- * So this computes only that, in four cheap passes per cluster:
- *
- * 1. break cycles (a DFS reverses back edges),
- * 2. rank by longest path, pull each source up next to its nearest child, and
- *    merge ranks down to about √n so a long reference chain can't stretch the
- *    graph into a strip,
- * 3. order each rank by the barycentre of its neighbours, a few sweeps each way,
- *    looking at neighbours on *any* rank rather than threading dummies through
- *    the ones in between,
- * 4. stack each rank as a column (a row, top-to-bottom), wrapping a rank too
- *    long to read into side-by-side sub-columns.
- *
- * Clusters are laid out independently and placed side by side along the rank
- * axis, the ones whose types mostly point at other clusters first — so
- * documents sit upstream of the objects they reuse, as they do under dagre.
+ * A layered layout for graphs dagre can't lay out in interactive time (50s on a
+ * 331-type schema). React Flow routes edges itself, so only card positions are
+ * computed: break cycles, rank by longest path, order by barycentre, stack ranks.
  */
 
 export interface LayeredNode {
   id: string
-  /** Nodes sharing a group are laid out together, inside one cluster box. */
   group: string
   width: number
   height: number
@@ -40,14 +18,10 @@ export interface LayeredEdge {
 
 export interface LayeredOptions {
   direction: 'LR' | 'TB'
-  /** Gap between neighbouring cards in one rank. */
   nodeSep: number
-  /** Gap between ranks. */
   rankSep: number
-  /** Inner padding of a cluster box; the top edge also leaves room for its label. */
   clusterPadding: number
   clusterLabelHeight: number
-  /** Gap between two cluster boxes. */
   clusterSep: number
 }
 
@@ -59,13 +33,10 @@ interface LayeredBox {
 }
 
 export interface LayeredResult {
-  /** Top-left corner of each node. */
   positions: Map<string, {x: number; y: number}>
-  /** Bounding box of each group, padding included. */
   groups: Map<string, LayeredBox>
 }
 
-/** How many barycentre sweeps, each one down and one up the ranks. */
 const ORDERING_SWEEPS = 4
 
 export function layeredLayout(
@@ -85,8 +56,6 @@ export function layeredLayout(
     }
   }
 
-  // Intra-group adjacency for layering; cross-group edge counts for ordering
-  // the groups themselves.
   const pairs = new Set<string>()
   const intra = new Map<string, LayeredEdge[]>()
   const flow = new Map<string, number>(groupOrder.map((g) => [g, 0]))
@@ -107,7 +76,6 @@ export function layeredLayout(
     }
   }
 
-  // Upstream clusters first. Stable, so equal flows keep first-seen order.
   const orderedGroups = [...groupOrder].sort((a, b) => flow.get(b)! - flow.get(a)!)
 
   const positions = new Map<string, {x: number; y: number}>()
@@ -118,8 +86,6 @@ export function layeredLayout(
 
   for (const group of orderedGroups) {
     const local = layoutGroup(members.get(group)!, intra.get(group) ?? [], options)
-    // A lone group gets no cluster box, so no padding either — the same rule
-    // `layoutGraph` applies under dagre.
     const pad = single ? 0 : clusterPadding
     const top = single ? 0 : clusterPadding + clusterLabelHeight
     const box =
@@ -133,8 +99,6 @@ export function layeredLayout(
     offset += (direction === 'LR' ? box.width : box.height) + clusterSep
   }
 
-  // Centre the clusters on each other across the rank axis, so a short one
-  // doesn't hang off the top (or left) of a tall neighbour.
   if (!single) {
     const across = (box: LayeredBox) => (direction === 'LR' ? box.height : box.width)
     const tallest = Math.max(...[...groups.values()].map(across))
@@ -182,11 +146,7 @@ function layoutGroup(
   return place(ranks, new Map(nodes.map((n) => [n.id, n])), options)
 }
 
-/**
- * The same edges with every back edge a DFS finds reversed, so ranking can
- * treat the graph as a DAG. Iterative: a deep reference chain must not blow
- * the stack.
- */
+/** Iterative: a deep reference chain must not blow the stack. */
 function acyclic(ids: readonly string[], edges: readonly LayeredEdge[]): LayeredEdge[] {
   const next = new Map<string, string[]>(ids.map((id) => [id, []]))
   for (const edge of edges) next.get(edge.source)!.push(edge.target)
@@ -220,11 +180,7 @@ function acyclic(ids: readonly string[], edges: readonly LayeredEdge[]): Layered
   )
 }
 
-/**
- * Longest-path ranks (Kahn's order, so O(nodes + edges)), then every source
- * moved down to sit just above its nearest child — otherwise every type that
- * nothing references piles into rank 0, however far its targets are.
- */
+/** Sources move down beside their nearest child, or every unreferenced type piles into rank 0. */
 function assignRanks(
   ids: readonly string[],
   out: Map<string, string[]>,
@@ -251,20 +207,14 @@ function assignRanks(
   return rank
 }
 
-/** Nodes grouped by rank, each rank ordered to keep neighbours level with each other. */
 function orderRanks(
   ids: readonly string[],
   rank: Map<string, number>,
   out: Map<string, string[]>,
   inn: Map<string, string[]>,
 ): string[][] {
-  // Long reference chains (a `parent` on every document) rank a graph far
-  // deeper than it is wide — 80 ranks of four cards is a strip nobody can
-  // read. Consecutive ranks are merged, in proportion, down to about √n: rank
-  // order is kept, so no edge starts pointing backwards, and an edge between
-  // two merged ranks simply runs along the column.
+  // Merge consecutive ranks down to about √n, so a long reference chain can't make a strip.
   const ranksPresent = [...new Set(rank.values())].sort((a, b) => a - b)
-  // Never below 6: a small cluster's chain reads fine at its real depth.
   const maxRanks = Math.max(6, Math.round(Math.sqrt(ids.length) * 0.9))
   const merged = Math.min(ranksPresent.length, maxRanks)
   const indexOfRank = new Map(
@@ -273,7 +223,6 @@ function orderRanks(
   const ranks: string[][] = Array.from({length: merged}, () => [])
   for (const id of ids) ranks[indexOfRank.get(rank.get(id)!)!].push(id)
 
-  // Position within a rank, as a fraction, so ranks of different sizes compare.
   const position = new Map<string, number>()
   const record = (layer: string[]) =>
     layer.forEach((id, i) => position.set(id, (i + 0.5) / layer.length))
@@ -300,11 +249,6 @@ function orderRanks(
   return ranks
 }
 
-/**
- * Coordinates: each rank a column (a row under `TB`) of cards spaced by
- * `nodeSep`, centred across the group; a rank longer than a readable column
- * wraps into several side by side.
- */
 function place(
   ranks: readonly string[][],
   nodeById: Map<string, LayeredNode>,
@@ -312,7 +256,6 @@ function place(
 ): GroupLayout {
   const total = ranks.reduce((sum, r) => sum + r.length, 0)
   const perColumn = Math.max(8, Math.ceil(Math.sqrt(total) * 1.5))
-  // Along the rank axis a card is as thick as it is wide (LR) or tall (TB).
   const along = (n: LayeredNode) => (direction === 'LR' ? n.width : n.height)
   const across = (n: LayeredNode) => (direction === 'LR' ? n.height : n.width)
 

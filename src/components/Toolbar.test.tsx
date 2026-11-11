@@ -30,10 +30,6 @@ const stats: GraphStats = {
   system: 1,
 }
 
-/**
- * The toolbar takes `view` whole, but the tests still poke at one field at a
- * time — so overrides stay flat here and get folded into it.
- */
 interface Overrides {
   searchQuery?: string
   onSearchQueryChange?: ViewState['setSearchQuery']
@@ -104,37 +100,26 @@ function props(o: Overrides = {}): ToolbarProps {
   }
 }
 
-/** Opens a `MenuButton` — Sanity UI mounts a menu's items only once it opens. */
 async function openMenu(name: RegExp | string): Promise<void> {
   const button = screen.getByRole('button', {name})
   await userEvent.click(button)
   expect(button.getAttribute('aria-expanded')).toBe('true')
 }
 
-/** Opens a `MenuGroup` inside an open menu — its items mount only then, too. */
 async function openSubmenu(name: string): Promise<void> {
   await userEvent.click(screen.getByRole('button', {name, hidden: true}))
 }
 
-/**
- * One menu item, by its label. Not scoped to a menu: an opened popover is
- * positioned by Popper, which needs a layout engine jsdom doesn't have, so it
- * stays `hidden` and can't be told apart from the closed ones by any honest
- * query. The labels asserted here are unique across the toolbar's menus.
- */
+/** Not scoped to a menu: jsdom can't position popovers, so open and closed menus look alike. */
 function menuItem(name: RegExp | string): HTMLElement {
   return screen.getByRole('menuitem', {name, hidden: true})
 }
 
-/** Sanity UI marks a disabled item with a valueless `data-disabled`. */
 function isDisabled(item: HTMLElement): boolean {
   return item.hasAttribute('data-disabled')
 }
 
 describe('Toolbar', () => {
-  // The wording itself is `statsLine`'s, asserted against every kind- and
-  // filter-registry shape in `src/statsLine.test.ts`. What's left to check here
-  // is that the toolbar renders what that function returns.
   it('renders the stats line', () => {
     renderWithProviders(<Toolbar {...props()} />)
 
@@ -192,8 +177,6 @@ describe('Toolbar', () => {
 
       await openMenu('Filter')
 
-      // The toolbar knows nothing about what a filter does — a `FilterDef` is
-      // enough to put it in the menu.
       expect(screen.getByText('Document counts')).toBeDefined()
       expect(screen.getByText('Kind')).toBeDefined()
       expect(screen.getByText('Health status')).toBeDefined()
@@ -342,9 +325,6 @@ describe('Toolbar', () => {
     expect(link.getAttribute('target')).toBe('_blank')
   })
 
-  // The toolbar renders whatever a feature hands it and knows nothing about
-  // what that is — `DocumentCountsButton` and its states are tested beside the
-  // component, in `src/documentCounts/`.
   describe('extraActions', () => {
     it('renders a contributed control in the action row', () => {
       renderWithProviders(

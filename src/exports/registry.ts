@@ -1,23 +1,5 @@
-/*
- * `@maciejtrzcinski/sanity-plugin-schema-visualization/registry` — the extensibility surface
- * `docs/extending.md` documents: the registry types and their defaults, the
- * ordering helpers that edit a default, the graph model, and the entry points
- * that build a graph, run the health rules or export a graph from code.
- *
- * It is a subpath rather than part of the root because the root is what a
- * Studio runs at boot. Nothing here is needed to *install* the plugin.
- *
- * Every export carries a release tag on its own declaration:
- *
- *   `@public` — the supported API. Breaking one takes a major.
- *
- *   `@beta` — the individual built-in entries (reach them through the default
- *   arrays and the ordering helpers, by id) and the code exports. Free to
- *   change in a minor, so pin the version if you depend on one.
- *
- * Plumbing the tool uses internally stays internal; `src/index.test.ts` pins
- * this list so a new export shows up in review.
- */
+// The extensibility surface. A subpath because the root runs at every Studio's
+// boot. `@public` breaks only in a major; `@beta` may change in a minor.
 export {
   attributePathsRule,
   computeHealthIssues,

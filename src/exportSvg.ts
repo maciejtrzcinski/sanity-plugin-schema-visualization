@@ -1,36 +1,15 @@
 /**
- * True vector SVG export, built by walking the live React Flow viewport DOM
- * and re-expressing what it paints as SVG primitives: boxes with a visible
- * background/border become `<rect>`s, text nodes become `<text>` positioned
- * by the browser's own layout, inline icon SVGs are copied through, and React
- * Flow's edges — already SVG paths in flow coordinates — are lifted almost
- * verbatim (with their computed styles inlined, since the export has no
- * stylesheet).
- *
- * Why not `html-to-image`'s `toSvg`: that clones the DOM into a
- * `foreignObject` with every computed CSS property inlined per element —
- * 49 MB for a 37-node graph — and `foreignObject` only renders in browsers
- * anyway. Reading geometry from the rendered DOM instead keeps the output a
- * plain SVG (KBs per node, opens in any viewer/editor) with no hand-mirrored
- * copy of `TypeNode`'s layout to drift out of sync: whatever Sanity UI
- * painted is what gets measured.
+ * Vector SVG export, built by walking the live viewport DOM. Not
+ * `html-to-image`'s `toSvg`: its `foreignObject` clone was 49 MB for 37 nodes
+ * and only renders in browsers.
  */
 
-/**
- * The name an export downloads as, scoped to the workspace and dataset it
- * came from: two Studios open on one machine (a staging workspace and a
- * production one, say) otherwise both write `schema-graph.svg`, and the
- * second silently replaces the first in the downloads folder. Called with
- * nothing — outside a workspace — it yields the bare `schema-graph.svg`.
- */
 export function svgExportFileName(scope: {workspaceName?: string; dataset?: string} = {}): string {
   const parts = ['schema-graph', scope.workspaceName, scope.dataset].map(slugify).filter(Boolean)
-  // A workspace named after its dataset (`production` / `production`) would
-  // otherwise stutter.
+  // Avoids `production-production`.
   return `${[...new Set(parts)].join('-')}.svg`
 }
 
-/** Anything the name can't safely carry into a filesystem, to `-`. */
 function slugify(value: string | undefined): string {
   return (value ?? '')
     .toLowerCase()
@@ -39,10 +18,8 @@ function slugify(value: string | undefined): string {
 }
 
 export interface SvgExportFrame {
-  /** Output width/height in flow px (graph bounds plus padding). */
   width: number
   height: number
-  /** Flow-coordinate translation applied to everything (padding minus bounds origin). */
   offsetX: number
   offsetY: number
   backgroundColor: string
@@ -50,16 +27,7 @@ export interface SvgExportFrame {
 
 const num = (n: number) => String(Math.round(n * 100) / 100)
 
-/**
- * XML-escapes text and attribute values. Both go through this one function:
- * attributes are always written with `"` delimiters, so escaping `&<>"` covers
- * each position, and `'` needs no handling. An unescaped `&` in a type title is
- * enough to make the whole export unopenable, so this is exported for its own
- * test rather than only exercised through `viewportToSvg` — which needs real
- * browser layout and is checked in the dev Studio.
- *
- * @internal
- */
+/** @internal */
 export function esc(s: string): string {
   return s
     .replace(/&/g, '&amp;')
@@ -69,12 +37,7 @@ export function esc(s: string): string {
 }
 
 let colorCtx: CanvasRenderingContext2D | null | undefined
-/**
- * Round-trips a color through a canvas `fillStyle` so modern CSS color forms
- * the browser resolves to (`color(srgb …)` from the clusters' `color-mix`
- * tints, `oklch(…)`, …) come back as plain hex/rgba that any SVG viewer,
- * not just a browser, can parse.
- */
+/** Round-trips through canvas `fillStyle`, so `color(…)` and `oklch(…)` become hex/rgba. */
 function normalizeColor(color: string): string {
   const c = color.trim()
   if (!c || c === 'none' || /^(#|rgb)/.test(c)) return c
@@ -88,30 +51,18 @@ function normalizeColor(color: string): string {
 }
 
 /**
- * The alpha channel of a computed color, 0–1. Drives {@link isInvisible},
- * which is what decides whether a painted box becomes a `<rect>` at all — so a
- * mis-parse here means borders that print solid where the Studio shows none, or
- * fills that vanish from the export. Silent in both directions, hence exported
- * for its own test.
- *
- * Anything it cannot read is treated as fully opaque: drawing something the
- * viewer can then see beats dropping it.
+ * Unreadable colors count as opaque: drawing something beats dropping it.
  *
  * @internal
  */
 export function colorAlpha(color: string): number {
   const c = color.trim()
   if (!c || c === 'none' || c === 'transparent') return 0
-  // Any slash-separated alpha: `color(srgb r g b / a)` and `oklch(… / a)` from
-  // the clusters' `color-mix` tints, and the space-separated `rgb(r g b / a)`
-  // CSS Color 4 also allows. Read before the comma form below — that one has no
-  // slash, so the order is unambiguous, and splitting `rgb(34 118 252 / 0.75)`
-  // on the slash there would have yielded two parts and read as opaque.
+  // Slash alpha first: splitting `rgb(34 118 252 / 0.75)` on commas reads as opaque.
   const slashAlpha = c.match(/\/\s*([\d.]+)(%?)\s*\)$/)
   if (slashAlpha) {
     return slashAlpha[2] ? parseFloat(slashAlpha[1]) / 100 : parseFloat(slashAlpha[1])
   }
-  // Legacy `rgba(r, g, b, a)`. A three-part `rgb(…)` carries no alpha.
   const legacy = c.match(/^rgba?\(([^)]+)\)$/)
   if (legacy) {
     const parts = legacy[1].split(',').map((p) => p.trim())
@@ -122,7 +73,6 @@ export function colorAlpha(color: string): number {
 
 const isInvisible = (color: string) => colorAlpha(color) === 0
 
-/** Geometry/behavior attributes copied through on SVG elements; presentation comes from computed style. */
 const SVG_COPY_ATTRS = [
   'd',
   'points',
@@ -170,7 +120,6 @@ class SvgSerializer {
     this.measureCtx = document.createElement('canvas').getContext('2d')
   }
 
-  /** Screen-space rect → flow coordinates (the space edge paths already use). */
   private toLocal(r: DOMRect) {
     return {
       x: (r.left - this.vpLeft) / this.zoom,
@@ -187,8 +136,6 @@ class SvgSerializer {
       `<rect width="${num(width)}" height="${num(height)}" fill="${esc(normalizeColor(backgroundColor))}"/>`,
     ]
 
-    // Arrowhead markers live in a dedicated defs-only SVG; edge paths
-    // reference them by id, so the ids must survive into the export's defs.
     const flowEl = this.viewportEl.closest('.react-flow') ?? this.viewportEl
     const markers = flowEl.querySelectorAll<SVGMarkerElement>('.react-flow__marker marker')
     if (markers.length > 0) {
@@ -199,9 +146,7 @@ class SvgSerializer {
 
     this.out.push(`<g transform="translate(${num(offsetX)} ${num(offsetY)})">`)
 
-    // DOM order within the viewport is not paint order (React Flow layers via
-    // z-index: the cluster-band portal sits last in the DOM but paints
-    // underneath everything) — emit background → edges → labels → nodes.
+    // DOM order isn't paint order: the cluster-band portal is last but paints underneath.
     const rank = (el: Element) =>
       el.classList.contains('react-flow__viewport-portal')
         ? 0
@@ -221,7 +166,6 @@ class SvgSerializer {
 
   private serializeElement(el: Element) {
     if (el instanceof SVGSVGElement) {
-      // Marker defs are already emitted into the top-level <defs>.
       if (el.classList.contains('react-flow__marker')) return
       this.serializeSvgRoot(el)
       return
@@ -246,11 +190,6 @@ class SvgSerializer {
     if (opacity < 1) this.out.push('</g>')
   }
 
-  /**
-   * Emits a `<rect>` for any element that paints a background or a uniform
-   * border, plus one `<line>` per side for partial borders (the divider under
-   * an expanded card's header is a lone `border-bottom`).
-   */
   private paintBox(el: HTMLElement, cs: CSSStyleDeclaration) {
     const bg = cs.backgroundColor
     const hasBg = !isInvisible(bg)
@@ -304,12 +243,6 @@ class SvgSerializer {
     }
   }
 
-  /**
-   * An inline `<svg>` in the HTML tree: an icon inside a card (has a viewBox
-   * — nest it, positioned by its on-screen rect), or one of React Flow's
-   * per-edge SVGs (no viewBox; its children are already in flow coordinates,
-   * so a plain group at the element's offset carries them through).
-   */
   private serializeSvgRoot(el: SVGSVGElement) {
     const cs = getComputedStyle(el)
     if (cs.display === 'none' || cs.visibility === 'hidden') return
@@ -333,7 +266,6 @@ class SvgSerializer {
     }
   }
 
-  /** Serializes an element inside an SVG subtree, inlining its computed presentation styles. */
   private serializeSvgElement(el: Element) {
     const tag = el.tagName.toLowerCase()
     const cs = getComputedStyle(el)
@@ -347,7 +279,6 @@ class SvgSerializer {
     const fill = cs.fill
     const stroke = cs.stroke
     const strokeOpacity = parseFloat(cs.strokeOpacity)
-    // React Flow's fat invisible interaction paths — pure hit areas.
     if (shape && isInvisible(fill) && (isInvisible(stroke) || strokeOpacity === 0)) return
 
     let attrs = ''
@@ -391,11 +322,6 @@ class SvgSerializer {
     }
   }
 
-  /**
-   * One `<text>` per rendered line, positioned by the browser's own line
-   * boxes (via Range client rects), so wrapping, flex centering, and badge
-   * padding all come out exactly where they were painted.
-   */
   private serializeTextNode(node: Text, parentEl: HTMLElement, cs: CSSStyleDeclaration) {
     const raw = node.data
     if (!raw || !raw.trim()) return
@@ -429,7 +355,6 @@ class SvgSerializer {
     }
   }
 
-  /** Splits a wrapped text node into per-line runs by grouping character rects by their top edge. */
   private splitLines(node: Text): {text: string; rect: DOMRect}[] {
     const lines: {text: string; rect: DOMRect}[] = []
     const range = document.createRange()
@@ -459,10 +384,8 @@ class SvgSerializer {
   }
 
   /**
-   * `text-overflow: ellipsis` clipping doesn't shrink a text node's layout
-   * rects, so an over-long title would spill past its card in the export.
-   * Detect the clip on the nearest overflow-hidden ancestor and re-truncate
-   * with canvas text measurement, mirroring what the browser painted.
+   * Ellipsis clipping doesn't shrink a text node's rects, so re-truncate with
+   * canvas text measurement.
    */
   private applyEllipsis(text: string, parentEl: HTMLElement, rect: DOMRect, font: string): string {
     let clipEl: HTMLElement | null = null

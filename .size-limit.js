@@ -1,16 +1,5 @@
-/**
- * Two budgets, matching the two moments a Studio pays for this plugin.
- *
- * `boot` is what every Studio that installs the plugin downloads at startup,
- * whether or not anyone opens the tool — so it must stay tiny. Dynamic imports
- * are left out of it on purpose: they are the lazily loaded tool, measured
- * separately. A stray static import from `src/index.ts` is exactly what this
- * catches.
- *
- * `tool` is what opening the tool costs, with its own dependencies (React Flow,
- * dagre) bundled in. The Studio's own packages are excluded: the Studio has
- * already loaded them.
- */
+// `boot`: what every Studio downloads at startup, dynamic imports excluded.
+// `tool`: what opening the tool costs, minus packages the Studio already loaded.
 const studio = ['sanity', 'react', 'react-dom', 'styled-components', '@sanity/ui', '@sanity/icons']
 
 const leaveDynamicImportsOut = {

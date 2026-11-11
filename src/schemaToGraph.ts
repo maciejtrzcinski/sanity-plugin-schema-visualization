@@ -37,16 +37,9 @@ import {readValidation} from './validation'
 
 /** @public */
 export interface SchemaToGraphOptions {
-  /**
-   * Rules for turning a compiled schema type into a label and the connections
-   * it implies. Splice a custom describer in ahead of the built-in it needs to
-   * pre-empt — the last default matches everything.
-   */
+  /** Rules for reading a compiled type's label and connections. */
   fieldDescribers?: readonly FieldDescriber[]
-  /**
-   * Badges describing how a field behaves — `required`, `read-only`, `list`.
-   * Every entry runs; order is the order badges appear on the field row.
-   */
+  /** Badges describing how a field behaves. Every entry runs, in order. */
   fieldBadges?: readonly FieldBadgeDef[]
   /** How deep to descend into anonymous nested types. Defaults to 8. */
   maxDepth?: number
@@ -54,18 +47,9 @@ export interface SchemaToGraphOptions {
   kinds?: readonly NodeKindDef[]
 }
 
-/**
- * The slice of the resolved plugin config that building a graph reads. Keyed
- * by the public options so the two can't drift apart, typed by the config so
- * the tool can hand its `ResolvedConfig` straight in.
- */
 type GraphBuildConfig = Pick<ResolvedConfig, keyof SchemaToGraphOptions>
 
-/**
- * Fills in the defaults for the options that shape the graph. The single
- * owner of those defaults: `resolveConfig` spreads this into the plugin
- * config, and `schemaToGraph` applies it for callers with no config at all.
- */
+/** The one owner of the graph-shaping defaults, for `resolveConfig` and `schemaToGraph`. */
 export function resolveGraphOptions(options: SchemaToGraphOptions = {}): GraphBuildConfig {
   return {
     fieldDescribers: options.fieldDescribers ?? defaultFieldDescribers,
@@ -75,7 +59,6 @@ export function resolveGraphOptions(options: SchemaToGraphOptions = {}): GraphBu
   }
 }
 
-/** The built-in type a compiled type is ultimately declared as. */
 function intrinsicTypeOf(type: SchemaType): string {
   let current: SchemaType | undefined = type
   for (let depth = 0; current && depth <= 32; depth++) {
@@ -145,7 +128,6 @@ function readFieldsets(type: SchemaType): FieldsetSummary[] | undefined {
 interface DescribableField {
   name: string
   type: SchemaType
-  /** See `WalkContext.selfName`. */
   selfName?: string
   group?: unknown
   fieldset?: unknown
@@ -171,10 +153,7 @@ function describeField(
   const links = dedupeLinks(walked.links)
   const {required, constraints} = readValidation(fieldType)
 
-  // Field badges carry the id of the def that produced them; a describer's own
-  // options have none, so they take the position it emitted them at. Both need
-  // one: the card and the panel render the list as React children, and two
-  // options on one field can share a label.
+  // Ids give the card and panel a stable React key: two options on one field can share a label.
   const options: CollectedFieldOption[] = collectFieldBadges(
     fieldType,
     {name, required, validation: constraints, t},
@@ -208,7 +187,6 @@ function describeField(
   }
 }
 
-/** `fields` without its `undefined` entries — keeps unset optional fields out of the graph's JSON. */
 function withDefined<T extends Record<string, unknown>>(fields: T): Partial<T> {
   const defined: Partial<T> = {}
   for (const key of Object.keys(fields) as Array<keyof T>) {
@@ -217,7 +195,6 @@ function withDefined<T extends Record<string, unknown>>(fields: T): Partial<T> {
   return defined
 }
 
-/** Keeps the shallowest path per (kind, target) — the clearest one to label an edge with. */
 function dedupeLinks(links: FieldLink[]): FieldLink[] {
   const byTarget = new Map<string, FieldLink>()
   for (const link of links) {
@@ -233,15 +210,11 @@ function uniqueTargets(links: FieldLink[], kind: FieldLink['kind']): string[] {
 }
 
 /**
- * The fields to show for a type. Object and document types expose their own;
- * a registered *array* type (`blockContent`, `tags`) has no fields of its own,
- * so it gets a single synthetic row standing in for its members — without it,
- * references reachable only through that array (portable-text annotations,
- * most commonly) would have nowhere to hang.
+ * A registered array type gets one synthetic row for its members, or references
+ * through it would have nowhere to hang.
  */
 function getDescribableFields(typeName: string, type: SchemaType): DescribableField[] {
-  // Some intrinsic object types (`document`, `object`) compile with no
-  // `fields` array at all, so this can't assume the property is present.
+  // `document` and `object` can compile with no `fields` at all.
   if (isObjectSchemaType(type)) {
     return (type.fields ?? []).map((f) => ({
       name: f.name,
@@ -250,8 +223,6 @@ function getDescribableFields(typeName: string, type: SchemaType): DescribableFi
       fieldset: 'fieldset' in f ? f.fieldset : undefined,
     }))
   }
-  // `selfName` keeps the walk from stopping at "this field reuses
-  // `blockContent`" when `blockContent` is the type we're describing.
   if (isArraySchemaType(type)) return [{name: 'of', type, selfName: typeName}]
   return []
 }
@@ -261,20 +232,8 @@ function edgeId(source: string, fieldName: string, kind: string, target: string)
 }
 
 /**
- * Transforms a compiled Sanity Studio schema into a graph of nodes (types)
- * and edges (reference / reused-type connections) suitable for rendering
- * on a canvas.
- *
- * Field types are walked recursively, so a reference nested inside an inline
- * object, a customized `image`, an array member, or a portable-text
- * annotation produces an edge just like a top-level one does.
- *
- * A thin wrapper over `buildGraph` for library consumers; the tool
- * itself calls `buildGraph` with the config it has already resolved.
- *
- * `t` is handed to every field describer and field badge, so the labels and
- * badges they produce follow the Studio's locale. It defaults to this
- * plugin's English bundle, which is what a headless caller gets.
+ * Turns a compiled Studio schema into a graph of types and their connections,
+ * walking field types recursively. `t` defaults to the English bundle.
  *
  * @public
  */
@@ -286,7 +245,6 @@ export function schemaToGraph(
   return buildGraph(schema, resolveGraphOptions(options), t)
 }
 
-/** {@link schemaToGraph} for a caller that already holds a resolved config. */
 export function buildGraph(
   schema: Schema,
   config: GraphBuildConfig,
@@ -315,11 +273,7 @@ export function buildGraph(
       fields.push(summary)
 
       for (const link of links) {
-        // A type pointing at itself — a recursive object, or a reference
-        // like "related posts" — is structurally fine, but dagre skips
-        // self-loops and React Flow draws them as a degenerate squiggle on
-        // the card. The field's own badges (`referencesTo`/`reusesTypes`)
-        // still show the target, so drop the edge.
+        // Self-loops are dropped: dagre skips them and React Flow draws a squiggle.
         if (link.target === name) continue
 
         const id = edgeId(name, field.name, link.kind, link.target)
@@ -332,10 +286,6 @@ export function buildGraph(
           kind: link.kind,
           fieldName: field.name,
           fieldPath: link.path === field.name ? undefined : link.path,
-          // Carried through for whatever kind sets it, rather than only for
-          // `reference` — a custom describer's own kind can mean something by
-          // it too. The built-in reference describer always sets it, so a
-          // reference edge still always has the flag.
           ...(link.weak === undefined ? {} : {weak: link.weak}),
         })
       }
@@ -368,8 +318,6 @@ export function buildGraph(
     if (count !== undefined) node.attributePaths = count
   }
 
-  // Drop edges that point at a type we didn't end up creating a node for
-  // (can happen for `to`/`of` entries referencing an unregistered type name).
   const nodeIds = new Set(nodes.map((n) => n.id))
   const filteredEdges = edges.filter((e) => nodeIds.has(e.source) && nodeIds.has(e.target))
 

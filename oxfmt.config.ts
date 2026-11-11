@@ -3,7 +3,6 @@ import {defineConfig} from 'oxfmt'
 
 export default defineConfig({
   ...pluginKitOxfmt,
-  // The release writes CHANGELOG.md and formats it with prettier (the
-  // semantic-release preset's `prepareCmd`), so oxfmt keeps out of it.
+  // Written by the release and formatted with prettier, not oxfmt.
   ignorePatterns: [...(pluginKitOxfmt.ignorePatterns ?? []), 'CHANGELOG.md'],
 })

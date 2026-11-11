@@ -34,8 +34,6 @@ describe('catchAllEdgeKind', () => {
     expect(catchAllEdgeKind([referenceKind, unflagged])).toBe(unflagged)
   })
 
-  // `resolveConfig` warns about this rather than rejecting it, so every
-  // `?? catchAllEdge` site still has to have something to draw with.
   it('falls back to the built-in catch-all for an empty registry', () => {
     expect(catchAllEdgeKind([])).toBe(reusesKind)
   })
@@ -57,7 +55,6 @@ describe('edgeBadgeLabel', () => {
 
   it('falls back to the edge’s kind id when the def has no `badgeLabel`', () => {
     expect(edgeBadgeLabel(edge({kind: 'reuses'}), reusesKind, defaultTranslate)).toBe('reuses')
-    // An edge drawn as the catch-all still says what it actually is.
     expect(edgeBadgeLabel(edge({kind: 'cross-dataset'}), reusesKind, defaultTranslate)).toBe(
       'cross-dataset',
     )

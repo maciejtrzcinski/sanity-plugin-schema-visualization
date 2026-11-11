@@ -53,7 +53,6 @@ describe('getRegisteredTypeNames', () => {
 
   it('warns and falls back to the intrinsic list when `_original` is gone', () => {
     const schema = postSchema()
-    // Simulating a Sanity release that moves or drops the private field.
     Reflect.deleteProperty(schema, '_original')
 
     const names = getRegisteredTypeNames(schema)
@@ -97,7 +96,6 @@ describe('isFieldRequired, via schemaToGraph', () => {
     const post = schema.get('post')
     if (!post || !isObjectSchemaType(post))
       throw new Error('expected a compiled `post` object type')
-    // A Rule instance that no longer carries `_rules` under that name.
     for (const field of post.fields) Reflect.set(field.type, 'validation', [{someNewShape: []}])
 
     const graph = schemaToGraph(schema)
@@ -109,12 +107,7 @@ describe('isFieldRequired, via schemaToGraph', () => {
   })
 })
 
-/**
- * Canaries: these read the `sanity` actually installed, and CI runs them
- * against the 5.x line, `latest` and `next`. Each pins something Sanity owns
- * that this plugin mirrors or reads privately, so drift on their side fails a
- * build here before it quietly changes what a user's canvas draws.
- */
+// Canaries: CI runs these against Sanity 5.x, `latest` and `next`.
 describe('against the installed Sanity', () => {
   const blankSchema = () => createSchema({name: 'blank', types: []})
 
@@ -128,9 +121,6 @@ describe('against the installed Sanity', () => {
   })
 
   it('knows every built-in type the fallback would otherwise draw as user-written', () => {
-    // `getRegisteredTypeNames` falls back to `INTRINSIC_TYPE_NAMES` plus the
-    // `sanity.` prefix when `_original` is missing. A new built-in outside both
-    // would be drawn as the author's own type in that case.
     const unknown = blankSchema()
       .getTypeNames()
       .filter((name) => !INTRINSIC_TYPE_NAMES.has(name) && !name.startsWith('sanity.'))

@@ -13,7 +13,6 @@ describe('DocumentCountsButton', () => {
     await userEvent.click(screen.getByRole('button', {name: 'Load doc counts'}))
     expect(onClick).toHaveBeenCalledOnce()
 
-    // A load in flight must not be re-triggered by an impatient second click.
     rerender(<DocumentCountsButton status="loading" onClick={onClick} />)
     expect(screen.getByRole('button').hasAttribute('disabled')).toBe(true)
 
@@ -29,7 +28,6 @@ describe('DocumentCountsButton', () => {
       <DocumentCountsButton status="idle" onClick={() => {}} />,
     )
 
-    // There is nothing to say about freshness until a load has succeeded.
     await userEvent.hover(screen.getByRole('button', {name: 'Load doc counts'}))
     expect(document.body.textContent).not.toContain('Loaded')
 
@@ -42,7 +40,6 @@ describe('DocumentCountsButton', () => {
     )
     await userEvent.hover(screen.getByRole('button', {name: 'Refresh doc counts'}))
 
-    // Like the toolbar's menus, the tooltip's popover stays `hidden` under jsdom.
     await waitFor(() => expect(document.body.textContent).toContain('Loaded 5m ago'))
   })
 })

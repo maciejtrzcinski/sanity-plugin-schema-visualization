@@ -19,11 +19,7 @@ import {NodeBadgeChip} from './NodeBadgeChip'
 
 const CONNECTION_ROW_CLASS = 'sv-connection-row'
 
-/**
- * A connection row is one big button. Plain CSS rather than `Card as="button"`:
- * the card drops its border when rendered as a button, and its hover tint is
- * too faint to read as clickable.
- */
+/** Plain CSS: `Card as="button"` drops its border and barely tints on hover. */
 const CONNECTION_ROW_CSS = `
 .${CONNECTION_ROW_CLASS} {
   appearance: none;
@@ -54,9 +50,7 @@ export interface DetailPanelProps {
   edges: GraphEdge[]
   issues: HealthIssue[]
   isFocused: boolean
-  /** Per-node data loaded after the graph was built — see `NodeAnnotations`. */
   annotations?: NodeAnnotations
-  /** Where "New <type>" leads; omitted when the Studio wouldn't offer it — see `useCreateDocumentTarget`. */
   createDocument?: CreateDocumentTarget
   onClose: () => void
   onNavigate: (nodeId: string) => void
@@ -83,9 +77,7 @@ export function DetailPanel({
     [edges, node.id],
   )
 
-  // The same registry the cards paint, so a badge a consumer registers shows
-  // up here too. `expanded` is always true: the panel lists every field, so
-  // the collapsed card's "N fields" summary would only repeat the heading.
+  // `expanded`: the panel lists every field anyway.
   const badges = useMemo(() => {
     const warningCount = issues.filter((issue) => issue.severity === 'warning').length
     return collectNodeBadges(
@@ -290,7 +282,6 @@ export function DetailPanel({
   )
 }
 
-/** Which group(s) and fieldset a field sits in, by their titles. */
 function fieldPlacement(field: FieldSummary, node: GraphNode, t: TranslateFn): string {
   const parts: string[] = []
   if (field.groups) {
@@ -308,17 +299,7 @@ function fieldPlacement(field: FieldSummary, node: GraphNode, t: TranslateFn): s
   return parts.join(t('detail.meta-separator'))
 }
 
-/**
- * The way out of the graph and into the rest of the Studio: Sanity's `create`
- * intent, which the Structure tool answers by opening this type's document
- * list with a new document in it. An intent rather than a hand-built URL, so
- * it lands wherever the Studio's own structure puts the type — and whichever
- * tool claims it, in a Studio that replaced Structure entirely. Nothing is
- * written until the user edits the new document.
- *
- * Rendered as an anchor so it behaves like a link (middle-click, copy address)
- * rather than a button that happens to navigate.
- */
+/** An intent, not a hand-built URL, so it lands wherever the Studio's structure puts the type. */
 function CreateDocumentButton({target, label}: {target: CreateDocumentTarget; label: string}) {
   const {onClick, href} = useIntentLink({
     intent: 'create',

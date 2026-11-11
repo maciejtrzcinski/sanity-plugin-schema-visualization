@@ -29,7 +29,6 @@ describe('TypeNode', () => {
     renderWithProviders(<TypeNode data={data()} />)
 
     expect(screen.getByText('Blog post')).toBeDefined()
-    // Shown separately only because the title differs from the type name.
     expect(screen.getByText('post')).toBeDefined()
     expect(screen.getByText('document')).toBeDefined()
   })
@@ -52,8 +51,7 @@ describe('TypeNode', () => {
   it('toggles expansion through the chevron without selecting the node', async () => {
     const onToggleExpand = vi.fn()
     const onCardClick = vi.fn()
-    // React Flow selects a node from a click that bubbles out of the card, so
-    // the chevron must not let one through.
+    // React Flow selects from a click that bubbles out of the card.
     renderWithProviders(
       <div role="presentation" onClick={onCardClick}>
         <TypeNode data={data({expanded: false, onToggleExpand})} />
@@ -63,7 +61,6 @@ describe('TypeNode', () => {
     await userEvent.click(screen.getByRole('button', {name: 'Expand fields'}))
 
     expect(onToggleExpand).toHaveBeenCalledWith('post')
-    // The chevron stops propagation so expanding doesn't also open the panel.
     expect(onCardClick).not.toHaveBeenCalled()
   })
 
@@ -81,13 +78,11 @@ describe('TypeNode', () => {
       <TypeNode data={data({warningCount: 1, infoCount: 2})} />,
     )
 
-    // One badge for all three, and a warning outranks the two notes.
     expect(screen.getByText('3')).toBeDefined()
     expect(container.querySelector('[data-sanity-icon="warning-outline"]')).not.toBeNull()
 
     rerender(<TypeNode data={data({warningCount: 0, infoCount: 2})} />)
 
-    // Advisory notes only — not something to flag as a warning.
     expect(container.querySelector('[data-sanity-icon="warning-outline"]')).toBeNull()
     expect(container.querySelector('[data-sanity-icon="info-outline"]')).not.toBeNull()
   })
@@ -112,14 +107,10 @@ describe('TypeNode', () => {
   it('falls back to the catch-all kind for a kind the registry does not have', () => {
     renderWithProviders(<TypeNode data={data({node: {...postNode, kind: 'gone'}})} />)
 
-    // Renders rather than throwing — the catch-all supplies tone and icon.
     expect(screen.getByText('Blog post')).toBeDefined()
   })
 
   it('renders both option badges when a field carries two with the same label', () => {
-    // A field badge and a describer's own option can carry the same label on
-    // one field. Keyed by label, React warns about the collision and
-    // reconciles the two as one on the next update — hence the collected id.
     const node = makeNode({
       id: 'post',
       fields: [

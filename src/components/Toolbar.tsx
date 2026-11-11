@@ -37,7 +37,6 @@ const ISSUES_URL = 'https://github.com/maciejtrzcinski/sanity-plugin-schema-visu
 
 interface FocusOption extends BaseAutocompleteOption {
   title: string
-  /** Pre-rendered so the option's label doesn't need the kind registry to read it. */
   kindLabel: string | null
   isSystem: boolean
 }
@@ -49,39 +48,19 @@ function focusOptionLabel(option: FocusOption, t: TranslateFn): string {
 }
 
 export interface ToolbarProps {
-  /**
-   * The shared view state, straight from `useViewState`. Passed whole rather
-   * than spread into ~15 props: every one of them would have to be threaded
-   * through `SchemaVisualizationTool` and re-listed here to add a single
-   * control.
-   */
   view: ViewState
-  /** What each filter's `summary` sees — the same context its predicate gets. */
   filterContext: FilterContext
   stats: GraphStats
   focusOptions: Array<{id: string; title: string; isSystem: boolean; kind: GraphNodeKind}>
   healthIssueCount: number
-  /** The `warning`-severity share of `healthIssueCount` — decides the button's tone. */
   healthWarningCount: number
   showHealthPanel: boolean
   onToggleHealthPanel: () => void
   onCopyLink: () => void
-  /**
-   * Controls an optional feature contributes to the toolbar's action row,
-   * rendered after "Copy link". A slot rather than a prop per feature: this
-   * file knows nothing about what it is rendering, so a feature ships its own
-   * button without editing the toolbar — see `DocumentCountsButton`, the one
-   * that does today.
-   */
   extraActions?: ReactNode
 }
 
-/**
- * The focus combobox, memoised apart from the rest of the toolbar: it renders
- * a row per type, and every selection change re-renders the toolbar — 331
- * rows re-rendered per click on a large schema, for a list that hadn't
- * changed.
- */
+/** Memoised apart: on a large schema it re-rendered 331 rows per selection. */
 const FocusPicker = memo(function FocusPicker({
   options,
   focusNodeId,
@@ -162,12 +141,7 @@ export function Toolbar({
   const {filters: filterDefs, kindById, catchAll} = useConfig()
   const t = useTranslate()
 
-  // The input updates instantly for responsive typing, but propagation to
-  // `searchQuery` (which drives matching/dimming across every node in
-  // `GraphCanvas`) is debounced so fast typing doesn't force a full-graph
-  // re-render on every keystroke. `searchQuery` is only ever set from this
-  // debounce, never from outside, so `localSearch` doesn't need to re-sync
-  // from the prop.
+  // Debounced: `searchQuery` restyles every node. It's only ever set from here, so no re-sync.
   const [localSearch, setLocalSearch] = useState(searchQuery)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -376,13 +350,6 @@ export function Toolbar({
   )
 }
 
-/**
- * One filter's controls, rendered from its definition. A `multi` filter is a
- * flat list of independently toggleable items; a `single` filter is a
- * radio-style submenu. Either way the toolbar knows nothing about what the
- * filter actually does — adding one means adding a `FilterDef`, not editing
- * this file.
- */
 function FilterMenuSection({
   def,
   filters,
@@ -412,8 +379,7 @@ function FilterMenuSection({
             text={localized(t, option.i18n?.label, option.label)}
             icon={selected.values.has(option.value) ? CheckmarkIcon : undefined}
             pressed={selected.values.has(option.value)}
-            // The last checked option can't be unchecked — an empty selection
-            // would hide every node. Disabling it says so before the click.
+            // The last checked option can't be unchecked: an empty selection hides every node.
             disabled={selected.values.size === 1 && selected.values.has(option.value)}
             onClick={() => onToggleFilterValue(def, option.value)}
           />

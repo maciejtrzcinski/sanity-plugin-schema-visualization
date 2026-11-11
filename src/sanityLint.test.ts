@@ -24,15 +24,11 @@ const author = defineType({
   fields: [defineField({name: 'name', type: 'string'})],
 })
 
-/**
- * A document type with no title or icon. It still needs a field: Sanity
- * rejects an empty one, and a schema with any error compiles to no types.
- */
+/** Still needs a field: Sanity rejects an empty type, and any error compiles to no types. */
 function bare(name: string) {
   return defineType({name, type: 'document', fields: [defineField({name: 'body', type: 'text'})]})
 }
 
-/** Records what the adapter hands a rule, to check the conversion itself. */
 function capture(): {rule: SanityLintRule; seen: SanityLintType[]} {
   const seen: SanityLintType[] = []
   return {
@@ -79,8 +75,6 @@ describe('fromSanityLint', () => {
     const untitled = bare('untitled')
     const schema = compile([untitled, author])
 
-    // Compilation titles every type, which is why the adapter reads the
-    // authored definitions.
     expect(schema.get('untitled')?.title).toBe('Untitled')
     expect(lint(schema, [missingTitle]).map((issue) => issue.nodeId)).toEqual(['untitled'])
   })
@@ -181,7 +175,6 @@ describe('fromSanityLint', () => {
     })
     expect(converted?.fields).toMatchObject([
       {name: 'title', hasValidation: true, hidden: false},
-      // A conditional `hidden` is visible some of the time.
       {name: 'note', hasValidation: false, hidden: false},
       {name: 'legacy', hidden: true},
       {name: 'owner', type: 'reference', to: [{type: 'author'}]},

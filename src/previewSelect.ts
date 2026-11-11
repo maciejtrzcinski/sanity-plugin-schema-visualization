@@ -9,12 +9,7 @@ function fieldType(type: SchemaType, name: string): SchemaType | undefined {
   return isObjectSchemaType(type) ? type.fields.find((f) => f.name === name)?.type : undefined
 }
 
-/**
- * How many references resolving `path` from `root` crosses. A reference is
- * only crossed when the path reads past it (`author.name`, not `author`).
- * Stops counting at the first segment it can't follow — an unknown field, a
- * computed value — since nothing past it can be judged.
- */
+/** References crossed resolving `path`; one is only crossed when the path reads past it. */
 export function countDereferences(root: SchemaType, path: string): number {
   let current: SchemaType | undefined = root
   let dereferences = 0
@@ -38,7 +33,6 @@ export function countDereferences(root: SchemaType, path: string): number {
   return dereferences
 }
 
-/** The type's `preview.select`, with each path's dereference count. */
 export function readPreviewSelect(type: SchemaType): PreviewSelection[] | undefined {
   const preview: unknown = 'preview' in type ? type.preview : undefined
   if (typeof preview !== 'object' || preview === null || !('select' in preview)) return undefined

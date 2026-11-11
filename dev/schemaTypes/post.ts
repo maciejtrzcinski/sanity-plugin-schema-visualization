@@ -26,9 +26,7 @@ export const post = defineType({
       validation: (Rule) => Rule.required(),
     }),
     defineField({
-      // A reference into another dataset: the graph draws it as an
-      // `external-reference` edge, dashed and in its own colour, since the
-      // target `author` it names lives in the `shared` dataset.
+      // Cross-dataset reference: drawn as a dashed `external-reference` edge.
       name: 'syndicatedFrom',
       title: 'Syndicated from',
       type: 'crossDatasetReference',

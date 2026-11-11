@@ -54,8 +54,6 @@ function graph(nodes: GraphNode[], edges: GraphEdge[] = []): SchemaGraph {
 
 describe('severityTone', () => {
   it('separates a warning from an advisory note', () => {
-    // The whole point of the helper: every surface that paints an issue reads
-    // it, so `info` can never come out looking like `warning`.
     expect(severityTone('warning')).toBe('caution')
     expect(severityTone('info')).not.toBe(severityTone('warning'))
   })
@@ -86,8 +84,6 @@ describe('computeHealthIssues', () => {
   })
 
   it('does not flag a document type with no incoming edges', () => {
-    // Documents are entry points into the content lake — they aren't expected
-    // to be referenced by other schema types to be "used".
     const post = node({id: 'post', kind: 'document'})
     expect(computeHealthIssues(graph([post]))).toEqual([])
   })
@@ -287,9 +283,6 @@ describe('computeHealthIssues', () => {
   })
 
   describe('kind registry', () => {
-    // A consumer who replaces `kinds` gets their own categories here: the rules
-    // read `reportsOrphans` / `isReferenceTarget` off the registry rather than
-    // testing `node.kind` against the built-in ids.
     const block: NodeKindDef = {...objectKind, id: 'block', label: 'Blocks', singular: 'block'}
     const collection: NodeKindDef = {
       ...documentKind,
@@ -471,11 +464,6 @@ describe('createAttributePathsRule', () => {
   })
 })
 
-/**
- * What the health panel renders from. The panel has no category-to-label map of
- * its own — it walks these groups — so the ordering and labelling contract lives
- * here rather than in a jsdom test.
- */
 describe('groupIssuesByRule', () => {
   const issue = (category: string, nodeId: string): HealthIssue => ({
     id: `${category}:${nodeId}`,
@@ -502,14 +490,6 @@ describe('groupIssuesByRule', () => {
     expect(groupIssuesByRule([], defaultHealthRules)).toEqual([])
   })
 
-  /**
-   * The grouping is keyed by rule, so an issue whose rule is not in the list
-   * has no section to sit in and is dropped. That is what makes the panel's
-   * labels trustworthy — every heading comes from a rule that is installed —
-   * but it means the panel can show fewer issues than the toolbar's badge
-   * counts, which is `healthIssues.length`. Pinned deliberately: a future
-   * "other issues" bucket would be a visible change, not a silent one.
-   */
   it('drops an issue no installed rule claims', () => {
     const issues = [issue(defaultHealthRules[0].id, 'a'), issue('rule-since-removed', 'b')]
 

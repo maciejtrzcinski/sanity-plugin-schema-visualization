@@ -28,39 +28,17 @@ export interface SchemaVisualizationOptions extends SchemaToGraphOptions {
   documentCounts?: boolean
   /** Categories to sort schema types into. First match wins, so the catch-all goes last. */
   kinds?: readonly NodeKindDef[]
-  /**
-   * How deep to descend into anonymous nested types when reading a field's
-   * connections. Defaults to 8 — deep enough for any hand-written schema; a
-   * generated one nesting inline objects further than that can raise it.
-   */
+  /** How deep to descend into anonymous nested types. Defaults to 8. */
   maxDepth?: number
-  /**
-   * How each kind of connection is drawn, labelled and badged. Needed only by
-   * a `FieldDescriber` that emits links of a kind beyond the built-in
-   * `reference` and `reuses`.
-   */
+  /** How each kind of connection is drawn. Needed only for custom link kinds. */
   edgeKinds?: readonly EdgeKindDef[]
   /** Rules for reading a compiled schema type's label and connections. */
   fieldDescribers?: readonly FieldDescriber[]
-  /**
-   * Badges describing how a field behaves — `required`, `read-only`, `list`.
-   * Unlike the other registries this one has no first-match ordering: every
-   * entry runs, and order is the order badges appear on the field row.
-   */
+  /** Badges describing how a field behaves. Every entry runs, in order. */
   fieldBadges?: readonly FieldBadgeDef[]
-  /**
-   * Badges on a type's card header and in its detail panel — `system`,
-   * `deprecated`, the live document count, the collapsed card's field summary.
-   * Like `fieldBadges` every entry runs and order is the order they appear;
-   * unlike it, the height the canvas reserves per card is measured from
-   * whatever this produces, so a new badge needs no layout change.
-   */
+  /** Badges on a type's card header and detail panel. Every entry runs, in order. */
   nodeBadges?: readonly NodeBadgeDef[]
-  /**
-   * Node-visibility filters offered in the toolbar. Given a function, it
-   * receives the resolved kinds so a custom set can still include the derived
-   * kind filter (`createKindsFilter(kinds)`).
-   */
+  /** Toolbar visibility filters. A function receives the resolved kinds. */
   filters?: readonly FilterDef[] | ((kinds: readonly NodeKindDef[]) => readonly FilterDef[])
   /** Checks run over the graph for the health panel. */
   healthRules?: readonly HealthRule[]
@@ -75,13 +53,10 @@ export interface ResolvedConfig {
   documentCounts: boolean
   kinds: readonly NodeKindDef[]
   kindById: Map<GraphNodeKind, NodeKindDef>
-  /** Where a kind id that isn't in `kinds` resolves — see {@link catchAllKind}. */
   catchAll: NodeKindDef
-  /** Ids of the kinds whose types carry live document counts (`countsDocuments`). */
   docCountKinds: ReadonlySet<GraphNodeKind>
   edgeKinds: readonly EdgeKindDef[]
   edgeKindById: Map<GraphEdgeKind, EdgeKindDef>
-  /** Where an edge kind that isn't in `edgeKinds` resolves — see {@link catchAllEdgeKind}. */
   catchAllEdge: EdgeKindDef
   fieldDescribers: readonly FieldDescriber[]
   fieldBadges: readonly FieldBadgeDef[]
@@ -93,8 +68,6 @@ export interface ResolvedConfig {
 }
 
 export function resolveConfig(options: SchemaVisualizationOptions = {}): ResolvedConfig {
-  // The options that shape the graph get their defaults from the graph
-  // builder, so the tool and a bare `schemaToGraph` call can't disagree.
   const graphOptions = resolveGraphOptions(options)
   const {kinds, fieldDescribers, fieldBadges} = graphOptions
   const edgeKinds = options.edgeKinds ?? defaultEdgeKinds
@@ -126,17 +99,7 @@ export function resolveConfig(options: SchemaVisualizationOptions = {}): Resolve
   }
 }
 
-/**
- * Reports the registry mistakes that otherwise fail silently: a shadowed id, a
- * missing catch-all, a URL param two filters both claim. None of them throw —
- * a config problem should not be what takes a Studio down — and each is
- * reported once per session through the same channel as `src/compat.ts`, since
- * `resolveConfig` runs again whenever the options object identity changes.
- *
- * This runs in production too, for the same reason the compat warnings do: the
- * symptom (a filter that won't stick, a legend entry with the wrong colour) is
- * far harder to trace back than the warning is to read.
- */
+/** Reports registry mistakes that otherwise fail silently. Warns once, never throws. */
 function validateConfig(
   kinds: readonly NodeKindDef[],
   edgeKinds: readonly EdgeKindDef[],
@@ -212,24 +175,12 @@ function validateConfig(
   }
 }
 
-/**
- * The checks every id-keyed registry gets: no shadowed ids, and — for the
- * registries that resolve an unknown id to a fallback — a catch-all that is
- * flagged rather than merely last. Only the wording is per-registry, because
- * what actually goes wrong differs: a shadowed kind misclassifies types, a
- * shadowed filter loses its selection.
- *
- * `name` is the singular registry name, and it decides the `warnOnce` keys
- * (`config:duplicate-<name>:<id>`, `config:empty-<name>s`,
- * `config:no-catch-all-<name>`) — changing one re-warns a session that has
- * already been told.
- */
+// `name` decides the `warnOnce` keys; changing one re-warns sessions already told.
 function validateRegistry(
   defs: readonly Registered[],
   name: string,
   messages: {
     duplicate: (id: string) => string
-    /** Omitted by the registries where every entry runs and empty is merely inert. */
     empty?: string
     noCatchAll?: (lastId: string) => string
   },
@@ -247,12 +198,7 @@ function validateRegistry(
   }
 }
 
-/**
- * No default config: resolving one here would run `validateConfig` at import
- * time, before any consumer options exist, and would let a component render
- * against the built-in registries when it is simply outside the provider —
- * a mismatch that shows up as a wrong legend colour rather than an error.
- */
+/** No default: resolving one would run `validateConfig` at import time. */
 const ConfigContext = createContext<ResolvedConfig | null>(null)
 
 export function ConfigProvider({
@@ -282,21 +228,11 @@ export function useEdgeKinds(): readonly EdgeKindDef[] {
   return useConfig().edgeKinds
 }
 
-/**
- * The definition for one kind, falling back to the registry's catch-all rather
- * than throwing — see {@link catchAllKind} for why a node can name a kind the
- * registry no longer has.
- */
 export function useKind(id: GraphNodeKind): NodeKindDef {
   const {kindById, catchAll} = useConfig()
   return kindById.get(id) ?? catchAll
 }
 
-/**
- * The definition for one edge kind, falling back to the registry's catch-all —
- * see {@link catchAllEdgeKind} for why an edge can name a kind the registry
- * doesn't have.
- */
 export function useEdgeKind(id: GraphEdgeKind): EdgeKindDef {
   const {edgeKindById, catchAllEdge} = useConfig()
   return edgeKindById.get(id) ?? catchAllEdge

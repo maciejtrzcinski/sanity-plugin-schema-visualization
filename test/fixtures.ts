@@ -1,8 +1,3 @@
-/**
- * A hand-written graph for the component tests. Small enough to assert against
- * exactly, and built by hand rather than through `schemaToGraph` so a component
- * test fails for a rendering reason and never because schema compilation moved.
- */
 import type {FilterContext} from '../src/filters'
 import {defaultTranslate} from '../src/i18n'
 import type {GraphEdge, GraphNode, SchemaGraph} from '../src/types'
@@ -114,7 +109,6 @@ export const graph: SchemaGraph = {
   edges: [authorEdge, seoEdge],
 }
 
-/** The context `useGraphModel` would derive from {@link graph}, with no issues. */
 export function makeFilterContext(overrides: Partial<FilterContext> = {}): FilterContext {
   const source = overrides.graph ?? graph
   const connectedNodeIds = new Set<string>()

@@ -15,16 +15,11 @@ import type {SchemaGraph} from '../types'
 const EXPORT_PADDING = 48
 
 export interface ExportControlsProps {
-  /** What is on the canvas — filters and focus applied — for the model-based formats. */
   graph: SchemaGraph
   direction: 'LR' | 'TB'
-  /** Cluster background bands, rendered outside React Flow's node system — not covered by `getNodesBounds`. */
   clusters: ClusterBox[]
-  /** What the download is named — `svgExportFileName` in `exportSvg.ts` builds it. */
   fileName: string
-  /** Lifts `onlyRenderVisibleElements` culling so off-screen nodes are in the DOM to capture; resolves once they've mounted. */
   suspendCulling: () => Promise<void>
-  /** Restores normal viewport culling after the export finishes. */
   resumeCulling: () => void
 }
 
@@ -47,18 +42,7 @@ function unionRect(a: Rect, b: Rect): Rect {
   return {x, y, width: right - x, height: bottom - y}
 }
 
-/**
- * Exports exactly what's currently rendered on the canvas — respecting
- * active filters (focus mode, compact mode, system-type visibility) — as an
- * SVG. Captures `.react-flow__viewport` directly rather than the whole
- * `<ReactFlow>` container, which naturally excludes the minimap, controls,
- * and floating panels (they're siblings, not viewport children).
- *
- * SVG only, deliberately: true vectors (via `exportSvg.ts`) stay crisp at
- * any zoom and have no size ceiling, where a raster export is capped by the
- * browser's canvas limits and pixelates on large graphs. See `exportSvg.ts`
- * for why `html-to-image`'s `toSvg` isn't used either.
- */
+/** SVG only: vectors stay crisp and have no canvas size ceiling. */
 export function ExportControls({
   graph,
   direction,
@@ -68,16 +52,12 @@ export function ExportControls({
   resumeCulling,
 }: ExportControlsProps) {
   const {getNodes} = useReactFlow()
-  // This React Flow instance's own container — scoping the viewport lookup to
-  // it keeps the export working with multiple flows on the page.
   const flowEl = useStore((s) => s.domNode)
   const toast = useToast()
   const t = useTranslate()
   const [exporting, setExporting] = useState(false)
   const {kindById, catchAll} = useConfig()
 
-  // Built from the graph model, so no culling to lift and nothing to measure.
-  // Named after the SVG, so all three formats of one export sort together.
   const baseName = fileName.replace(/\.svg$/, '')
   const handleExportMermaid = useCallback(() => {
     const text = graphToMermaid(graph, {
@@ -102,24 +82,17 @@ export function ExportControls({
 
     setExporting(true)
     try {
-      // Off-screen nodes are culled from the DOM for pan/zoom performance
-      // (`onlyRenderVisibleElements`) — lift that so nodes outside the
-      // current viewport are actually present to capture below.
       await suspendCulling()
 
       const viewportEl = flowEl?.querySelector<HTMLElement>('.react-flow__viewport')
       if (!viewportEl) return
 
-      // Cluster background bands are rendered via ViewportPortal, outside
-      // React Flow's node system, and can extend past the outermost node —
-      // `getNodesBounds` alone would clip their labels out of the frame.
+      // Cluster bands sit outside React Flow's nodes and can extend past them.
       let bounds = getNodesBounds(nodes)
       for (const cluster of clusters) {
         bounds = unionRect(bounds, cluster)
       }
 
-      // The Studio's own card background, so a dark-theme graph doesn't land
-      // on a white page.
       const backgroundColor =
         getComputedStyle(viewportEl).getPropertyValue('--card-bg-color').trim() || '#ffffff'
 

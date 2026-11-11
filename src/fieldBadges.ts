@@ -13,33 +13,17 @@ import type {CollectedFieldOption, FieldConstraint, FieldOptionSummary} from './
 export interface FieldBadgeContext {
   /** The field's name on the type that owns it. */
   name: string
-  /**
-   * Whether validation statically requires this field. Resolved centrally
-   * because it comes from an undocumented shape inside the compiled `Rule`
-   * (see `isFieldRequired`), which no badge should have to guess at twice.
-   */
+  /** Whether validation statically requires this field. */
   required: boolean
   /** The field's other validation constraints, read in the same pass as `required`. */
   validation: FieldConstraint[]
-  /**
-   * Translates against this plugin's namespace — a badge's text is computed,
-   * so this is where a custom field badge localises, exactly as the built-ins
-   * below do.
-   */
+  /** Translates against this plugin's namespace. */
   t: TranslateFn
 }
 
 /**
- * One badge describing how a field *behaves*, as opposed to what its type
- * points at. Every def in the registry runs, in order, and each contributes
- * at most one badge — so a caller adds one with
- * `[...defaultFieldBadges, myBadge]` and drops or replaces exactly one
- * built-in by id.
- *
- * Deliberately not a `FieldDescriber` concern: describers run at every depth
- * of a field's type, while these read the field's own type only. The same
- * flags on a nested type describe that nested type, not this field, so a
- * describer emitting them would bubble misleading badges up.
+ * One badge describing how a field behaves. Every def runs, in order, and
+ * contributes at most one badge.
  *
  * @public
  */
@@ -60,9 +44,7 @@ export const requiredBadge: FieldBadgeDef = {
 /** @beta */
 export const readOnlyBadge: FieldBadgeDef = {
   id: 'read-only',
-  // `readOnly` is `boolean | ((context) => boolean)`; only a literal `true`
-  // means "always read-only" — a callback is conditional and can't be
-  // evaluated statically, so treating it as truthy here would be misleading.
+  // Only a literal `true` is always read-only; a callback can't be evaluated statically.
   badge: (type, ctx) =>
     type.readOnly === true ? {label: ctx.t('field-badge.read-only'), tone: 'default'} : undefined,
 }
@@ -70,8 +52,6 @@ export const readOnlyBadge: FieldBadgeDef = {
 /** @beta */
 export const hiddenBadge: FieldBadgeDef = {
   id: 'hidden',
-  // Same shape as `readOnly`, but a conditional one is worth saying out loud:
-  // a field missing from the form for reasons the graph can't show.
   badge: (type, ctx) => {
     if (type.hidden === true) return {label: ctx.t('field-badge.hidden'), tone: 'default'}
     if (typeof type.hidden === 'function') {
@@ -133,7 +113,6 @@ export const hotspotBadge: FieldBadgeDef = {
       : undefined,
 }
 
-/** Longest literal an initial-value badge spells out before it truncates. */
 const MAX_INITIAL_VALUE_LENGTH = 16
 
 /** @beta */
@@ -161,10 +140,7 @@ export const initialValueBadge: FieldBadgeDef = {
   },
 }
 
-/**
- * One phrase per constraint flag. Literal keys, so the i18n suite can see
- * every one of them is defined.
- */
+/** Literal keys, so the i18n suite can see each one. */
 const CONSTRAINT_KEYS: Record<string, string> = {
   min: 'field-badge.validation.min',
   max: 'field-badge.validation.max',
@@ -197,8 +173,7 @@ function constraintLabel(constraint: FieldConstraint, t: TranslateFn): string | 
 }
 
 /**
- * Every constraint beyond `required` in one badge — `min 3 · max 120`. Warning
- * and info rules say so, since they don't block publishing.
+ * Every constraint beyond `required`, e.g. `min 3 · max 120`.
  *
  * @beta
  */
@@ -214,9 +189,7 @@ export const validationBadge: FieldBadgeDef = {
 }
 
 /**
- * Order is the order badges appear on a field row, ahead of a describer's own.
- * A card shows the first two, so the badges that change how a field behaves
- * come first.
+ * Order is the order badges appear on a field row; a card shows the first two.
  *
  * @public
  */
@@ -233,13 +206,7 @@ export const defaultFieldBadges: readonly FieldBadgeDef[] = [
   initialValueBadge,
 ]
 
-/**
- * Runs a badge registry over one field.
- *
- * A throwing badge is skipped for that field rather than taking the graph
- * build down with it, and reported once: these run per field per build, so a
- * warning each would be unreadable — the same trade-off `src/compat.ts` makes.
- */
+/** A throwing badge is skipped for that field and reported once. */
 export function collectFieldBadges(
   type: SchemaType,
   ctx: Omit<FieldBadgeContext, 't' | 'validation'> & {

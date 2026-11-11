@@ -11,28 +11,16 @@ export function matchesQuery(node: GraphNode, query: string): boolean {
 }
 
 /**
- * Class names the canvas stylesheet dims by (see `CANVAS_CSS` in
- * `GraphCanvas`). Dimming is CSS rather than per-node data so a click touches
- * only what it changes: the selected node, its neighbours and their edges get
- * `LIT`, the canvas gets `SELECTING`, and the stylesheet fades everything
- * else. Carrying `dimmed` in each card's data instead re-rendered every card's
- * Sanity UI tree on every click — over a second on a 331-type schema.
+ * Dimming is CSS, not per-card data, so a click touches only what it changes.
+ * Per-card `dimmed` re-rendered every card: over a second on 331 types.
  */
 export const DIM_CLASSES = {
-  /** On the canvas while a node is selected. */
   selecting: 'sv-selecting',
-  /** On the selected node, its neighbours, and the edges between them. */
   lit: 'sv-lit',
-  /** On a node the current search does not match. */
   miss: 'sv-miss',
 } as const
 
-/**
- * Marks nodes for the canvas stylesheet: lit around the selection, missed by
- * the search. A node whose marks and selection are unchanged keeps its object,
- * so React Flow skips it — on a selection change that is everything but the
- * selection's neighbourhood.
- */
+/** An unchanged node keeps its object, so React Flow skips it. */
 export function computeStyledNodes(
   nodes: FlowNode[],
   searchQuery: string,
@@ -55,16 +43,7 @@ export function computeStyledNodes(
   })
 }
 
-/**
- * Lights the edges touching the selected node (raised above the rest, which
- * the stylesheet fades), and only shows an edge's field-name label when it's
- * worth reading — hovered, or connected to the current selection — rather
- * than on every edge all the time (a labeled edge costs an extra DOM node per
- * edge, which adds up on a schema with a lot of cross-references).
- *
- * Every other edge keeps its object, so a selection change re-renders only the
- * edges it lights or unlights instead of recomputing every path on the canvas.
- */
+/** Labels only on hovered or selected edges; every other edge keeps its object. */
 export function computeStyledEdges(
   baseEdges: FlowEdge[],
   selectedNodeId: string | null,

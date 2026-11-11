@@ -1,10 +1,8 @@
 import type {Tone} from './registry'
 
 /**
- * Which category a schema type falls into. The built-ins are `document`,
- * `object` and `other`; the union stays open so a consumer can register
- * extra kinds (see `NodeKindDef`) without patching this type — the
- * `(string & {})` arm keeps editor autocomplete for the built-ins.
+ * `document`, `object`, `other`, or a custom kind. `(string & {})` keeps
+ * autocomplete for the built-ins.
  *
  * @public
  */
@@ -18,9 +16,7 @@ export interface FieldOptionSummary {
 }
 
 /**
- * An option plus the id it was collected under — the field badge's def id, or
- * the position the describer emitted it at. A stable React key for the
- * surfaces that render the list, since two of them can share a label.
+ * An option plus the id it was collected under, a stable React key.
  *
  * @public
  */
@@ -35,17 +31,9 @@ export interface CollectedFieldOption extends FieldOptionSummary {
  * @public
  */
 export interface FieldConstraint {
-  /**
-   * The rule's flag: `min`, `max`, `length`, `regex`, `integer`, `precision`,
-   * `lessThan`, `greaterThan`, `unique`, `uri`, `email`, `assetRequired` or
-   * `custom`.
-   */
+  /** The rule's flag, e.g. `min`, `max`, `regex`, `custom`. */
   flag: string
-  /**
-   * The rule's argument, when it takes one: a number, a regex (its `name`, or
-   * its source between slashes), or `{field}` when it compares against another
-   * field's value.
-   */
+  /** The rule's argument: a number, a regex, or `{field}` to compare against another field. */
   value?: number | string | {field: string}
   /** Set on a `regex` rule that must *not* match. */
   inverted?: boolean
@@ -117,9 +105,8 @@ export interface PreviewSelection {
 }
 
 /**
- * How many distinct attribute paths (path + data type pairs) documents of a
- * schema can write, estimated from the schema alone. Sanity limits these per
- * dataset; see `attributePathsRule`.
+ * Distinct attribute paths (path + data type pairs) a schema's documents can
+ * write. Sanity limits these per dataset.
  *
  * @public
  */
@@ -158,11 +145,8 @@ export interface GraphNode {
 }
 
 /**
- * Which kind of connection an edge represents. The built-ins are `reference`,
- * `external-reference` (a cross-dataset or global document reference) and
- * `reuses`; the union stays open so a consumer can register extra kinds
- * (see `EdgeKindDef`) without patching this type — the `(string & {})` arm
- * keeps editor autocomplete for the built-ins.
+ * `reference`, `external-reference`, `reuses`, or a custom kind. `(string & {})`
+ * keeps autocomplete for the built-ins.
  *
  * @public
  */
@@ -192,11 +176,7 @@ export interface GraphEdge {
   kind: GraphEdgeKind
   /** Field name on the source type that produced this edge. */
   fieldName: string
-  /**
-   * Full path to the connection when it sits below the top level of the
-   * field, e.g. `"body[].markDefs[].author"`. Omitted when it would just
-   * repeat `fieldName`.
-   */
+  /** Full path when below the field's top level, e.g. `"body[].markDefs[].author"`. */
   fieldPath?: string
   /** True when the reference is a weak reference. */
   weak?: boolean

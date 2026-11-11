@@ -52,17 +52,10 @@ export interface ViewState {
   toggleExpanded: (nodeId: string) => void
   relayoutToken: number
   relayout: () => void
-  /** Prefs to persist, for {@link usePersistedViewPrefs}. */
   persistable: SessionPrefs
 }
 
-/**
- * Filters, focus and selection kept in one reducer so `setFocus` can set focus
- * and selection together in a single commit, and so the toolbar callbacks that
- * drive it (`toggleFilterValue` and friends) never close over
- * `focusNodeId`/`selectedNodeId` and so keep a stable identity across renders —
- * the toolbar has ~20 of these and re-renders on any change.
- */
+/** One reducer, so `setFocus` commits both at once and the toolbar callbacks stay stable. */
 interface CoreState {
   filters: FilterValues
   focusNodeId: string | null
@@ -75,25 +68,15 @@ type CoreAction =
   | {type: 'setSelectedNodeId'; id: string | null}
   | {type: 'adopt'; state: CoreState}
 
-/**
- * A filter change never clears focus or selection: a pick made from the
- * toolbar's "types & connections" combobox (or a click on the canvas) stays
- * put while the user narrows the graph around it. The canvas keeps a
- * focused/selected node on screen even when the active filters would otherwise
- * hide it (see `visibleGraph` in `GraphCanvas`), so nothing is left pointing
- * at something that isn't there.
- */
+/** A filter change never clears focus or selection; the canvas keeps them on screen. */
 function coreReducer(state: CoreState, action: CoreAction): CoreState {
   switch (action.type) {
     case 'changeFilters':
       return {...state, filters: action.compute(state.filters)}
     case 'setFocus':
-      // Focusing a node selects it too; clearing focus leaves the selection be.
       return {...state, focusNodeId: action.id, selectedNodeId: action.id ?? state.selectedNodeId}
     case 'setSelectedNodeId':
       return {...state, selectedNodeId: action.id}
-    // A URL that moved on its own replaces all three at once: they were
-    // decoded from one set of params and have to land in one commit.
     case 'adopt':
       return action.state
     default:
@@ -101,11 +84,6 @@ function coreReducer(state: CoreState, action: CoreAction): CoreState {
   }
 }
 
-/**
- * Drops a focus or selection the canvas couldn't act on: a link can outlive the
- * type it points at, or point at one the filters it carries hide (a system type
- * while the system filter is off).
- */
 function visibleIds(
   state: ShareableViewState,
   nodes: readonly GraphNode[],
@@ -119,17 +97,7 @@ function visibleIds(
   return {focusNodeId: visible(state.focusNodeId), selectedNodeId: visible(state.selectedNodeId)}
 }
 
-/**
- * All the view state the toolbar and canvas share: what's searched, filtered,
- * focused, selected and expanded.
- *
- * Initial values are layered — hardcoded defaults, then last session's stored
- * preferences, then whatever the URL carries. An explicit shared link always
- * wins over a stored personal default.
- *
- * The URL stays a live input after mount, not just a seed: params that change
- * from outside this hook are adopted (see the sync effect).
- */
+/** Defaults, then stored prefs, then the URL — which stays a live input after mount. */
 export function useViewState({
   nodes,
   filterContext,
@@ -140,9 +108,6 @@ export function useViewState({
   storedPrefs: ViewPrefs | null
 }): ViewState {
   const {filters: filterDefs, defaults} = useConfig()
-  // Scoped to this tool by the `RouteScope` Studio wraps every tool in, so the
-  // params read and written here are namespaced under the tool name and can't
-  // collide with the Studio's or another plugin's.
   const router = useRouter()
 
   const [initial] = useState(() => {
@@ -178,51 +143,31 @@ export function useViewState({
   const [expandedNodeIds, setExpandedNodeIds] = useState<Set<string>>(new Set())
   const [relayoutToken, setRelayoutToken] = useState(0)
 
-  // Read fresh at dispatch time so `clearFilters` can stay `[]`-stable.
-  // Updated after every commit; event handlers only ever fire post-commit, so
-  // `.current` is never stale.
+  // Read at dispatch time so `clearFilters` stays stable.
   const defaultFiltersRef = useRef(defaults.filters)
   useEffect(() => {
     defaultFiltersRef.current = defaults.filters
   })
 
-  // The owned params as this hook last left them — written below, or adopted
-  // from the router. A router update that disagrees with them changed the URL
-  // from somewhere else, which is what tells the two directions apart.
+  // Owned params as last written or adopted; a router update that differs came from elsewhere.
   const syncedParamsRef = useRef<readonly SearchParamPair[]>(initial.ownedParams)
 
-  // Keeps the URL and the shareable slice of view state in step, whichever of
-  // the two moved: a local change is written to the URL, so the address bar
-  // always reflects a link that reproduces what's on screen, and a URL that
-  // changed on its own is adopted, so the plugin doesn't overwrite a
-  // navigation it didn't make.
-  //
-  // Writing goes through the router rather than `history.replaceState`: the
-  // Studio router owns the query string and re-derives it from its own state
-  // on every navigation, so writing to history directly would both drop the
-  // params it holds and be undone the next time anything else navigates.
+  // Writes local changes to the URL and adopts outside ones. Through the router, not
+  // `history.replaceState`: the router re-derives the query string from its own state.
   useEffect(() => {
     const current = router.state._searchParams ?? []
     const currentOwned = ownedViewStateParams(current, filterDefs)
     const encoded = encodeViewState({searchQuery, filters, focusNodeId, selectedNodeId}, filterDefs)
 
-    // The effect re-runs on every router update, including the ones it caused
-    // itself — bail out unless the two sides actually disagree.
     if (sameSearchParams(currentOwned, [...encoded])) {
       syncedParamsRef.current = currentOwned
       return
     }
 
-    // Params nobody here wrote: a back navigation over one of the `replace`s
-    // below, an intent, a link into this tool carrying a different view. The
-    // URL wins — replacing it with the state on screen is what made those
-    // navigations look ignored.
+    // Params nobody here wrote (back navigation, an intent, a link): the URL wins.
     if (!sameSearchParams(currentOwned, syncedParamsRef.current)) {
       syncedParamsRef.current = currentOwned
-      // Filters missing from the URL fall back to the configured defaults, not
-      // to the stored preferences as on mount: arriving at a link that carries
-      // no filters should show what `clearFilters` shows, not whatever this
-      // browser last persisted.
+      // Missing filters fall back to configured defaults, not stored prefs, as `clearFilters` does.
       const decoded = decodeViewState(
         new URLSearchParams(current),
         filterDefs,
@@ -251,8 +196,6 @@ export function useViewState({
 
   const setFocus = useCallback((id: string | null) => dispatch({type: 'setFocus', id}), [])
 
-  // `compute` defers reading the current filters to the reducer, keeping these
-  // callbacks free of a `filters` dependency.
   const changeFilters = useCallback(
     (compute: (current: FilterValues) => FilterValues) =>
       dispatch({type: 'changeFilters', compute}),
@@ -283,8 +226,6 @@ export function useViewState({
     })
   }, [])
 
-  // Switching compact mode resets per-node overrides, which only make sense
-  // relative to the mode they were made in.
   const setCompactMode = useCallback((value: boolean) => {
     setCompactModeState(value)
     setExpandedNodeIds(new Set())
@@ -292,8 +233,7 @@ export function useViewState({
 
   const relayout = useCallback(() => setRelayoutToken((t) => t + 1), [])
 
-  // Memoized: this is an effect dependency in `usePersistedViewPrefs`, and a
-  // fresh object every render would write to localStorage every render.
+  // Memoized: an effect dependency, so a fresh object would write storage every render.
   const persistable = useMemo(
     () => ({compactMode, direction, filters}),
     [compactMode, direction, filters],
@@ -322,16 +262,10 @@ export function useViewState({
   }
 }
 
-/**
- * Hands each feature its own slice of the stored cache to validate. One entry
- * today; a second feature adds a line here and a validator of its own, and
- * `viewPrefs.ts` is untouched either way.
- */
 function readFeatureCache(raw: Record<string, unknown>): FeatureCache {
   return {documentCounts: readStoredDocumentCounts(raw.documentCounts)}
 }
 
-/** Reads stored preferences once, on mount. */
 export function useStoredViewPrefs(storageKey: string): ViewPrefs | null {
   const {filters: filterDefs} = useConfig()
   const [prefs] = useState(() =>
@@ -340,11 +274,6 @@ export function useStoredViewPrefs(storageKey: string): ViewPrefs | null {
   return prefs
 }
 
-/**
- * Writes preferences back whenever they change. A ref holds the last
- * successfully loaded document counts, so a transient loading/error state
- * during a refresh click doesn't overwrite a cached result with nothing.
- */
 export function usePersistedViewPrefs({
   storageKey,
   prefs,
@@ -372,8 +301,7 @@ export function usePersistedViewPrefs({
         fetchedAt: documentCounts.fetchedAt ?? Date.now(),
       }
     }
-    // A loading/error transition changes `documentCounts` without changing
-    // anything worth writing, so skip the save unless something did.
+    // A loading/error transition has nothing new to write.
     const last = lastSavedRef.current
     if (
       last &&

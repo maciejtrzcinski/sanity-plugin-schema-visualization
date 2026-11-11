@@ -18,10 +18,7 @@ import {NodeBadgeChip} from './NodeBadgeChip'
 function TypeNodeComponent({
   data,
   selected,
-  // `layoutGraph` picks these off the layout direction. React Flow hands them
-  // to a custom node but doesn't place its handles for it, so the sides have to
-  // be forwarded to the `Handle`s below — that's what React Flow measures when
-  // it routes an edge.
+  // React Flow doesn't place a custom node's handles; they need these sides to route edges.
   sourcePosition = Position.Right,
   targetPosition = Position.Left,
 }: {
@@ -36,8 +33,7 @@ function TypeNodeComponent({
   const t = useTranslate()
   const Icon = kind.icon
   const canExpand = node.fields.length > 0
-  // One badge for both severities, painted from the worse of the two — a card
-  // carrying nothing but advisory notes shouldn't read as a warning.
+  // Painted from the worse severity: advisory notes alone shouldn't read as a warning.
   const issueCount = warningCount + infoCount
   const worstSeverity = warningCount > 0 ? 'warning' : 'info'
   const IssueIcon = warningCount > 0 ? WarningOutlineIcon : InfoOutlineIcon
@@ -56,8 +52,7 @@ function TypeNodeComponent({
       shadow={selected ? 3 : 1}
       tone={kind.tone}
       style={{
-        // Must match what `layoutGraph` reserves per node, or dagre's spacing
-        // won't line up with what's actually painted.
+        // Must match what `layoutGraph` reserves per node.
         width: NODE_WIDTH,
         border: selected
           ? '2px solid var(--card-focus-ring-color, #2276fc)'
@@ -119,10 +114,7 @@ function TypeNodeComponent({
           </Badge>
         </Flex>
         {badges.length > 0 && (
-          // `badgeRowHeight` reserves space for exactly this list, over the
-          // same registry and the same context — so a badge added to the
-          // registry is measured without touching `layout.ts`. The `gap={1}`
-          // here is the `BADGE_GAP` it assumes.
+          // `badgeRowHeight` measures this list; `gap={1}` is the `BADGE_GAP` it assumes.
           <Flex gap={1} marginTop={2} align="center" wrap="wrap">
             {badges.map((badge) => (
               <NodeBadgeChip key={badge.id} badge={badge} fontSize={0} />
@@ -132,9 +124,7 @@ function TypeNodeComponent({
       </Box>
 
       {expanded && node.fields.length > 0 && (
-        // No height clamp here: `estimateNodeHeight` reserves space for exactly
-        // the rows rendered below, and the two must agree or dagre's spacing
-        // won't match what's painted.
+        // No height clamp: `estimateNodeHeight` must agree with the rows below.
         <Box padding={2}>
           <Stack gap={1}>
             {node.fields.slice(0, MAX_VISIBLE_FIELDS).map((field) => (

@@ -99,8 +99,6 @@ describe('readStoredDocumentCounts', () => {
     expect(readStoredDocumentCounts(written)).toEqual(written)
   })
 
-  // Every cache written before counts followed the perspective was counted
-  // under `drafts`, so that is what it still describes.
   it('reads a cache with no perspective as a drafts count', () => {
     expect(readStoredDocumentCounts({counts: {post: 1}, fetchedAt: 1})).toEqual({
       counts: {post: 1},
@@ -109,9 +107,6 @@ describe('readStoredDocumentCounts', () => {
     })
   })
 
-  // Without a `fetchedAt` there is nothing to say how stale the counts are, and
-  // the toolbar tooltip is built entirely out of that — so the slice is dropped
-  // rather than shown with an invented timestamp.
   it('rejects an entry with no usable fetchedAt', () => {
     expect(readStoredDocumentCounts({counts: {post: 1}})).toBeUndefined()
     expect(readStoredDocumentCounts({counts: {post: 1}, fetchedAt: 'yesterday'})).toBeUndefined()
@@ -124,8 +119,6 @@ describe('readStoredDocumentCounts', () => {
     expect(readStoredDocumentCounts(42)).toBeUndefined()
   })
 
-  // A corrupted `counts` costs only the bad keys: the same per-key check the
-  // fetch path uses drops them and keeps the rest.
   it('drops non-numeric counts but keeps the entry', () => {
     expect(readStoredDocumentCounts({counts: {post: 47, author: 'three'}, fetchedAt: 1})).toEqual({
       counts: {post: 47},

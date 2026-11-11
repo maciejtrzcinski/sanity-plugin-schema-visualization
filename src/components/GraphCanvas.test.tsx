@@ -11,8 +11,6 @@ import {LayoutController} from '../layoutController'
 import {GraphCanvas, type GraphCanvasProps} from './GraphCanvas'
 
 const defaultFilters = defaultFilterValues(createDefaultFilters(defaultNodeKinds))
-// Stable across `props()` calls, as the tool root's are: a new callback or new
-// issue maps on a rerender is a real reason to re-run the layout.
 const defaultFilterContext = makeFilterContext()
 const noop = () => {}
 
@@ -35,7 +33,6 @@ function props(overrides: Partial<GraphCanvasProps> = {}): GraphCanvasProps {
   }
 }
 
-/** The type cards React Flow currently has on the canvas, by node id. */
 function renderedNodeIds(): string[] {
   return sorted(
     [...document.querySelectorAll('.react-flow__node')].map(
@@ -48,7 +45,6 @@ function sorted(values: readonly string[]): string[] {
   return [...values].sort((a, b) => a.localeCompare(b))
 }
 
-/** Layout runs across two animation frames, so nothing is on screen synchronously. */
 async function waitForNodes(ids: string[]): Promise<void> {
   await waitFor(() => expect(renderedNodeIds()).toEqual(sorted(ids)))
 }
@@ -61,7 +57,6 @@ describe('GraphCanvas', () => {
   it('lays out a card per type the filters let through', async () => {
     renderWithProviders(<GraphCanvas {...props()} />)
 
-    // `sanity.imageAsset` is a system type, which the stock filters exclude.
     await waitForNodes(['post', 'author', 'seo'])
     expect(screen.getByText('Blog post')).toBeDefined()
   })
@@ -100,7 +95,6 @@ describe('GraphCanvas', () => {
       ],
       defaultValues: ['all'],
       urlParam: 'leaves',
-      // Reads `ctx.graph`, which is the whole schema and not the visible subset.
       predicate: (node, selected, ctx) =>
         selected.value !== 'referenced' || ctx.graph.edges.some((e) => e.target === node.id),
     }
@@ -145,8 +139,6 @@ describe('GraphCanvas', () => {
       />,
     )
 
-    // The system filter hides `sanity.imageAsset`, but a live selection keeps
-    // it on the canvas so the selection has something to highlight.
     await waitFor(() => expect(renderedNodeIds()).toContain('sanity.imageAsset'))
   })
 
@@ -155,16 +147,13 @@ describe('GraphCanvas', () => {
     const {rerender} = renderWithProviders(<GraphCanvas {...props({onSelectNode})} />)
     await waitForNodes(['post', 'author', 'seo'])
 
-    // `fireEvent`, not `userEvent`: the full pointer sequence reaches d3-drag,
-    // which reads `event.view.document` — and jsdom gives a synthesised
-    // mousedown no view. Selection is a plain click handler either way.
+    // `fireEvent`: d3-drag reads `event.view`, which jsdom's synthesized mousedown lacks.
     fireEvent.click(screen.getByText('Blog post'))
     expect(onSelectNode).toHaveBeenCalledExactlyOnceWith('post')
 
     onSelectNode.mockClear()
     rerender(<GraphCanvas {...props({onSelectNode, selectedNodeId: 'post'})} />)
     fireEvent.click(screen.getByText('Blog post'))
-    // Clicking the selected type again clears the selection.
     expect(onSelectNode).toHaveBeenCalledExactlyOnceWith(null)
   })
 
@@ -179,8 +168,6 @@ describe('GraphCanvas', () => {
     rerender(<GraphCanvas {...props({selectedNodeId: null})} />)
     await animationFrames(3)
 
-    // Selecting re-frames the viewport, but without a dagre pass: on a large
-    // schema that is what made a click freeze.
     expect(rebuild).toHaveBeenCalledTimes(settled)
   })
 
@@ -200,7 +187,6 @@ describe('GraphCanvas', () => {
   })
 
   it('does not re-run the layout when the filter context is rebuilt with the same issues', async () => {
-    // What loading document counts does: a new context object, same schema.
     const rebuild = vi.spyOn(LayoutController.prototype, 'rebuild')
     const {rerender} = renderWithProviders(<GraphCanvas {...props()} />)
     await waitForNodes(['post', 'author', 'seo'])
@@ -224,7 +210,6 @@ describe('GraphCanvas', () => {
 
     rerender(<GraphCanvas {...props({searchQuery: 'author'})} />)
 
-    // `computeStyledNodes` marks the misses; the canvas stylesheet fades them.
     await waitFor(() => {
       expect(isMissed('seo')).toBe(true)
       expect(isMissed('author')).toBe(false)
@@ -243,8 +228,6 @@ describe('GraphCanvas', () => {
   })
 
   it('badges whatever annotations a node carries', async () => {
-    // `documentCountAnnotations` is what decides which nodes get a `docCount`
-    // (only `countsDocuments` kinds); the canvas just carries what it's given.
     const annotations = new Map([['post', {docCount: 7}]])
     renderWithProviders(<GraphCanvas {...props({annotations})} />)
 
@@ -262,7 +245,6 @@ describe('GraphCanvas', () => {
   })
 })
 
-/** Resolves after `count` animation frames — the layout effect spans two. */
 function viewportTransform(): string {
   return document.querySelector<HTMLElement>('.react-flow__viewport')!.style.transform
 }
@@ -277,7 +259,6 @@ async function animationFrames(count: number): Promise<void> {
   await act(() => frames(count))
 }
 
-/** Whether the canvas stylesheet fades one card for the current search. */
 function isMissed(nodeId: string): boolean {
   return Boolean(
     document

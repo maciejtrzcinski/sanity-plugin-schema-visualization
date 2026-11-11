@@ -1,46 +1,13 @@
-/*
- * Every string this plugin puts on screen, in one namespace, with an English
- * bundle the Studio registers through the plugin's `i18n.bundles` option.
- * The namespace itself lives in `i18nNamespace.ts`, so the entry point can
- * name it without dragging these resources into the Studio's boot chunk.
- *
- * Two mechanisms feed off this file, because the strings come from two very
- * different places:
- *
- *   - **Registry labels are static**, so each def names its resource key in an
- *     `i18n` object (`documentKind.i18n.label`) and keeps its English `label`
- *     as the fallback. {@link localized} resolves one.
- *   - **Registry-produced sentences are computed** — a health rule's message
- *     names a field and a type, a badge counts things — so every registry
- *     callback that returns a string is handed a `t` on its context and calls
- *     it itself. That is what lets a *custom* rule or badge localise exactly
- *     the way the built-ins do.
- *
- * Both paths run outside the Studio too (`schemaToGraph`, `computeHealthIssues`
- * are usable headlessly), so {@link defaultTranslate} resolves keys against the
- * English resources below rather than requiring a Studio locale context.
- */
-
 /**
- * A translator function: a resource key plus the values interpolated into it.
- * Structurally the slice of Sanity's (i18next's) `t` this plugin uses, so the
- * Studio's own `t` satisfies it — see `useTranslate`.
- *
- * `values.count` picks between a key's `_one` and `_other` forms, and
- * `values.defaultValue` is the string to use when the key is missing, both as
- * i18next defines them.
+ * The slice of the Studio's (i18next's) `t` this plugin uses. `values.count`
+ * picks between `_one` and `_other`.
  *
  * @public
  */
 export type TranslateFn = (key: string, values?: Record<string, unknown>) => string
 
 /**
- * The English resource bundle — the single source of every default string, and
- * the fallback the plugin translates against when it runs outside a Studio.
- *
- * Keys are namespaced by where the string appears (`toolbar.`, `detail.`) or by
- * the registry that produces it (`health.rule.`, `node-badge.`). A key with
- * `_one`/`_other` variants is chosen by the `count` value passed with it.
+ * The English resource bundle, and the fallback outside a Studio.
  *
  * @public
  */
@@ -260,10 +227,7 @@ export const enUSResources: Record<string, string> = {
   'field.array-label': 'array of {{members}}',
 }
 
-/**
- * Fills `{{placeholders}}` from `values`; an unknown one is left alone — which
- * is also what makes a second pass over an already-interpolated string a no-op.
- */
+/** Unknown placeholders are left alone, so a second pass is a no-op. */
 export function interpolate(template: string, values?: Record<string, unknown>): string {
   if (!values) return template
   return template.replace(/\{\{(\w+)\}\}/g, (match, name: string) =>
@@ -271,11 +235,6 @@ export function interpolate(template: string, values?: Record<string, unknown>):
   )
 }
 
-/**
- * The English template for a key, honouring the `_one`/`_other` split when a
- * `count` is given — the same resolution i18next does, so a key works the same
- * whether the Studio's `t` or {@link defaultTranslate} resolves it.
- */
 export function englishTemplate(key: string, values?: Record<string, unknown>): string | undefined {
   const count = values?.count
   if (typeof count === 'number') {
@@ -285,36 +244,14 @@ export function englishTemplate(key: string, values?: Record<string, unknown>): 
   return enUSResources[key]
 }
 
-/**
- * Translates against the English bundle. The `t` every core entry point falls
- * back to, so `schemaToGraph`, `computeHealthIssues` and the registries stay
- * usable — and readable — outside a Studio, where there is no locale context
- * to ask.
- */
 export const defaultTranslate: TranslateFn = (key, values) => {
   const fallback = typeof values?.defaultValue === 'string' ? values.defaultValue : key
   return interpolate(englishTemplate(key, values) ?? fallback, values)
 }
 
 /**
- * One registry def's label under the current locale: the resource its `i18n`
- * key names, falling back to the English string written on the def itself. A
- * def with no `i18n` key — every def a consumer writes, until they add one —
- * keeps its `label` verbatim.
- *
- * The one subtlety is what happens to a def built by spreading a built-in,
- * which is how most custom kinds are written:
- *
- * ```ts
- * const collectionKind = {...documentKind, id: 'collection', label: 'Collections'}
- * ```
- *
- * That carries `documentKind`'s resource key onto text that is no longer
- * `documentKind`'s, and a localised Studio would go on rendering "Documents".
- * So a *built-in* key is only honoured while the def still carries the English
- * string that key stands for; edit the text and the text wins. A key this
- * bundle doesn't define is always honoured — that one belongs to whoever wrote
- * it, and resolves out of their own bundle.
+ * A built-in key is only honoured while the def still carries that key's English
+ * text, so `{...documentKind, label: 'Collections'}` doesn't render "Documents".
  */
 export function localized(t: TranslateFn, key: string | undefined, fallback: string): string {
   if (key === undefined) return fallback

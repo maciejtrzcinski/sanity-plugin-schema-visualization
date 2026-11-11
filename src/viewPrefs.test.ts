@@ -11,11 +11,6 @@ import {
   type ViewPrefsScope,
 } from './viewPrefs'
 
-/**
- * What `useStoredViewPrefs` passes in production. Supplied by the caller
- * rather than known to `loadViewPrefs`, which is why the storage layer has no
- * runtime dependency on the document-counts feature.
- */
 function readCache(raw: Record<string, unknown>): FeatureCache {
   return {documentCounts: readStoredDocumentCounts(raw.documentCounts)}
 }
@@ -151,13 +146,9 @@ describe('saveViewPrefs / loadViewPrefs', () => {
     expect([...(loaded?.prefs.filters.kinds ?? [])]).toEqual(['document'])
     expect(loaded?.prefs.filters.system).toEqual(['1'])
     expect(loaded?.prefs.filters.health).toEqual(['all'])
-    // A filter id that no longer exists is dropped, not carried forward.
     expect(loaded?.prefs.filters.notAFilter).toBeUndefined()
   })
 
-  // The v2 shape was flat: `compactMode`/`direction`/`filters` at the root,
-  // with `documentCounts` beside them. Nothing migrates it — an entry written
-  // before the split is dropped whole, and the tool falls back to defaults.
   it('drops an entry from the previous storage version rather than half-reading it', () => {
     const storage = fakeStorage()
     const key = buildViewPrefsStorageKey(scope)
@@ -174,8 +165,6 @@ describe('saveViewPrefs / loadViewPrefs', () => {
     expect(loadViewPrefs(storage, key, defs, readCache)).toBeNull()
   })
 
-  // A hand-edited or partially-written entry loses only what it corrupted:
-  // the nested records get the same per-field treatment as the root.
   it('reads a missing prefs or cache record as empty rather than discarding the entry', () => {
     const storage = fakeStorage()
     const key = buildViewPrefsStorageKey(scope)
@@ -187,9 +176,6 @@ describe('saveViewPrefs / loadViewPrefs', () => {
     expect(loaded?.cache.documentCounts).toBeUndefined()
   })
 
-  // The storage layer hands the raw cache record to the reader and keeps
-  // whatever comes back — it does not know what a feature's slice looks like,
-  // which is the whole point of `readCache` being an argument.
   it('stores whatever the cache reader returns, without validating the slice', () => {
     const storage = fakeStorage()
     const key = buildViewPrefsStorageKey(scope)
