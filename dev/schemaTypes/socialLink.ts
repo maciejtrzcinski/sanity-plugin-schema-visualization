@@ -1,8 +1,9 @@
 import {defineField, defineType} from 'sanity'
 
+// Health demo: no `title`, so the Studio labels it "Social Link", generated from
+// the name. Sanity Lint's `missing-title` flags it.
 export const socialLink = defineType({
   name: 'socialLink',
-  title: 'Social link',
   type: 'object',
   fields: [
     defineField({

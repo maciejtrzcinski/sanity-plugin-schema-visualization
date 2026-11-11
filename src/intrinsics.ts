@@ -1,4 +1,4 @@
-import type {Schema} from 'sanity'
+import type {Schema, SchemaTypeDefinition} from 'sanity'
 
 import {reportBrokenAssumption} from './compat'
 
@@ -61,6 +61,17 @@ export const INTRINSIC_FIELD_NAMES: Readonly<Record<string, ReadonlySet<string>>
 }
 
 /**
+ * The types exactly as the author passed them to `schema.types`, before
+ * compilation fills in titles and resolves names — `undefined` if Sanity stops
+ * providing them. Drift is reported by {@link getRegisteredTypeNames}, which
+ * every graph build runs.
+ */
+export function getAuthoredTypes(schema: Schema): readonly SchemaTypeDefinition[] | undefined {
+  const original = schema._original?.types
+  return Array.isArray(original) ? original : undefined
+}
+
+/**
  * The set of type names the user actually registered in `schema.types`, as
  * opposed to Sanity's built-in intrinsic/system types that ride along on
  * every compiled schema (image, slug, sanity.imageAsset, …).
@@ -68,8 +79,8 @@ export const INTRINSIC_FIELD_NAMES: Readonly<Record<string, ReadonlySet<string>>
 export function getRegisteredTypeNames(schema: Schema): Set<string> {
   // An empty list is a real answer — a Studio started from the `clean`
   // template registers no types — so only a missing one counts as drift.
-  const original = schema._original?.types
-  if (Array.isArray(original)) {
+  const original = getAuthoredTypes(schema)
+  if (original) {
     return new Set(original.map((t) => t.name))
   }
   reportBrokenAssumption(

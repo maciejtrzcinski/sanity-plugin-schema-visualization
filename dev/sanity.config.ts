@@ -1,7 +1,9 @@
+import {missingTitle} from '@sanity-labs/schema-lint'
 import {defineConfig} from 'sanity'
 import {structureTool} from 'sanity/structure'
 
 import {schemaVisualization} from '../src'
+import {defaultHealthRules, fromSanityLint} from '../src/exports/registry'
 import {largeSchemaTypes} from '../test/largeSchema'
 import {schemaTypes} from './schemaTypes'
 
@@ -16,7 +18,15 @@ export default defineConfig({
   projectId: process.env.SANITY_STUDIO_PROJECT_ID || 'your-project-id',
   dataset: process.env.SANITY_STUDIO_DATASET || 'production',
 
-  plugins: [structureTool(), schemaVisualization({documentCounts: true})],
+  plugins: [
+    structureTool(),
+    schemaVisualization({
+      documentCounts: true,
+      // One Sanity Lint rule, so the panel shows the adapter at work without
+      // the flood the full set raises on this schema.
+      healthRules: [...defaultHealthRules, ...fromSanityLint([missingTitle])],
+    }),
+  ],
 
   // `SANITY_STUDIO_LARGE_SCHEMA=1` swaps in the synthetic 331-type page
   // builder the layout benchmarks run against — the size at which the canvas

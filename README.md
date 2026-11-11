@@ -89,6 +89,9 @@ and nothing is saved until you edit it.
 | Document type has no documents | A document type with zero documents, once doc counts are loaded. A note, not a warning.                              |
 
 Flagged cards get a badge. Custom rules can be warnings or just notes.
+[Sanity Lint](https://github.com/sanity-labs/sanity-lint)'s schema rules can
+run here too, next to these. See
+[Sanity Lint rules](docs/extending.md#sanity-lint-rules).
 
 ### Good to know
 
@@ -158,15 +161,16 @@ Everything beyond the plugin itself comes from
 `@maciejtrzcinski/sanity-plugin-schema-visualization/registry`, so a Studio
 that never opens the tool doesn't load it.
 
-| Function                              | Returns                                                                         |
-| ------------------------------------- | ------------------------------------------------------------------------------- |
-| `schemaToGraph(schema, options?)`     | The graph (types as nodes, connections as edges) for a compiled schema.         |
-| `computeHealthIssues(graph, opts?)`   | The health issues for a graph. `opts`: `rules`, `kinds`, `t`, `docCountByType`. |
-| `graphToMermaid(graph, {direction?})` | A Mermaid flowchart, e.g. for a README or a pull request. _Beta API._           |
-| `graphToJson(graph)`                  | The graph as versioned JSON. _Beta API._                                        |
-| `insertBefore(defs, id, ...entries)`  | A copy of a registry with entries added before `id`.                            |
-| `replaceById(defs, entry)`            | A copy with the entry of the same id swapped out.                               |
-| `without(defs, ...ids)`               | A copy with those ids removed.                                                  |
+| Function                              | Returns                                                                                   |
+| ------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `schemaToGraph(schema, options?)`     | The graph (types as nodes, connections as edges) for a compiled schema.                   |
+| `computeHealthIssues(graph, opts?)`   | The health issues for a graph. `opts`: `rules`, `kinds`, `t`, `docCountByType`, `schema`. |
+| `fromSanityLint(rules)`               | Health rules that run Sanity Lint's schema rules. _Beta API._                             |
+| `graphToMermaid(graph, {direction?})` | A Mermaid flowchart, e.g. for a README or a pull request. _Beta API._                     |
+| `graphToJson(graph)`                  | The graph as versioned JSON. _Beta API._                                                  |
+| `insertBefore(defs, id, ...entries)`  | A copy of a registry with entries added before `id`.                                      |
+| `replaceById(defs, entry)`            | A copy with the entry of the same id swapped out.                                         |
+| `without(defs, ...ids)`               | A copy with those ids removed.                                                            |
 
 _Beta API_ means it can change in a minor release; the rest of the table is
 stable. The three helpers throw if an id doesn't exist, so a typo fails at

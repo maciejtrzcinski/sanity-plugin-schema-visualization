@@ -155,6 +155,8 @@ export const enUSResources: Record<string, string> = {
   'health.rule.empty-document-type.label': 'Document type has no documents',
   'health.rule.empty-document-type.message':
     'No "{{title}}" documents exist in the current perspective.',
+  // Sanity Lint's own message and its advice, both English text from the package.
+  'health.sanity-lint.message': '{{message}}. {{help}}',
 
   'kind.document.label': 'Documents',
   'kind.document.singular': 'document',

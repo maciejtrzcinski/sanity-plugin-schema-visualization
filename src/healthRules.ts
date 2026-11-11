@@ -1,3 +1,5 @@
+import type {Schema} from 'sanity'
+
 import type {ResolvedConfig} from './config'
 import {defaultTranslate, localized, type TranslateFn} from './i18n'
 import {defaultNodeKinds, type NodeKindDef} from './kinds'
@@ -55,6 +57,13 @@ export interface HealthContext {
    * "not known yet", not zero.
    */
   docCountByType: ReadonlyMap<string, number>
+  /**
+   * The compiled schema the graph was built from, for a rule that needs what
+   * the graph leaves out. Always set inside the Studio; outside it, only when
+   * the caller passes one to `computeHealthIssues`, so a rule reading it should
+   * stand down when it's missing.
+   */
+  schema?: Schema
   /**
    * Translates against this plugin's namespace. Rules build their messages
    * through it — including the built-ins below — so a custom rule localises
@@ -352,11 +361,17 @@ type HealthConfig = Pick<ResolvedConfig, 'healthRules' | 'kindById'>
 
 const NO_DOC_COUNTS: ReadonlyMap<string, number> = new Map()
 
+/** What a run reads beyond the graph and the rules, all optional. */
+interface HealthRunInputs {
+  t?: TranslateFn
+  docCountByType?: ReadonlyMap<string, number>
+  schema?: Schema
+}
+
 function buildHealthContext(
   graph: SchemaGraph,
-  kindById: HealthContext['kindById'] = indexById(defaultNodeKinds),
-  t: TranslateFn = defaultTranslate,
-  docCountByType: ReadonlyMap<string, number> = NO_DOC_COUNTS,
+  kindById: HealthContext['kindById'],
+  {t = defaultTranslate, docCountByType = NO_DOC_COUNTS, schema}: HealthRunInputs,
 ): HealthContext {
   const incomingCount = new Map<string, number>()
   for (const edge of graph.edges) {
@@ -369,6 +384,7 @@ function buildHealthContext(
     customNodes: graph.nodes.filter((n) => !n.isSystem),
     kindById,
     docCountByType,
+    ...(schema ? {schema} : {}),
     t,
   }
 }
@@ -383,6 +399,11 @@ export interface ComputeHealthIssuesOptions {
   t?: TranslateFn
   /** Document counts by type name, for the rules that judge them. */
   docCountByType?: ReadonlyMap<string, number>
+  /**
+   * The compiled schema the graph came from, for the rules that read it —
+   * the ones `fromSanityLint` builds. Without it they report nothing.
+   */
+  schema?: Schema
 }
 
 /**
@@ -397,21 +418,19 @@ export function computeHealthIssues(
   {
     rules = defaultHealthRules,
     kinds = defaultNodeKinds,
-    t = defaultTranslate,
-    docCountByType,
+    ...inputs
   }: ComputeHealthIssuesOptions = {},
 ): HealthIssue[] {
-  return runHealthRules(graph, {healthRules: rules, kindById: indexById(kinds)}, t, docCountByType)
+  return runHealthRules(graph, {healthRules: rules, kindById: indexById(kinds)}, inputs)
 }
 
 /** {@link computeHealthIssues} for a caller that already holds a resolved config. */
 export function runHealthRules(
   graph: SchemaGraph,
   config: HealthConfig,
-  t: TranslateFn = defaultTranslate,
-  docCountByType?: ReadonlyMap<string, number>,
+  inputs: HealthRunInputs = {},
 ): HealthIssue[] {
-  const ctx = buildHealthContext(graph, config.kindById, t, docCountByType)
+  const ctx = buildHealthContext(graph, config.kindById, inputs)
   const issues: HealthIssue[] = []
 
   for (const rule of config.healthRules) {

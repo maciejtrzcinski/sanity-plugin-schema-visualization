@@ -80,8 +80,9 @@ Every export carries a release tag, checked at build time by API Extractor:
   `TranslateFn`.
 - **`@beta`** — the individual built-in entries the defaults are made of
   (`requiredBadge`, `systemBadge`, `healthFilter`, `requiredHiddenRule`,
-  `referenceDescriber` and the like), `createAttributePathsRule`, and the
-  code exports `graphToMermaid`, `graphToJson` and `GRAPH_JSON_VERSION`. These
+  `referenceDescriber` and the like), `createAttributePathsRule`,
+  `fromSanityLint` and the `SanityLint*` types it takes, and the code exports
+  `graphToMermaid`, `graphToJson` and `GRAPH_JSON_VERSION`. These
   may change in a minor release — pin the version if you depend on one.
 
 Nothing else is exported. The plumbing the tool runs on — config resolution,
@@ -470,6 +471,11 @@ counts, empty until someone loads them) and returns raw issues — `id`,
 `category` and `severity` are filled in around them. A rule that throws is
 skipped rather than taking the panel down.
 
+`schema` is the compiled schema the graph came from, for what the graph leaves
+out. It's always set in the Studio, but outside it only when you pass one to
+`computeHealthIssues`, so a rule that reads it should return nothing when it's
+missing.
+
 `severity` is what the panel, the node badge and the detail panel are painted
 from, and what the "Only with warnings" filter selects on — an `info` rule
 reads as a note, not a problem.
@@ -518,6 +524,55 @@ const largeTypeRule: HealthRule = {
 
 schemaVisualization({healthRules: [...defaultHealthRules, largeTypeRule]})
 ```
+
+### Sanity Lint rules
+
+[Sanity Lint](https://github.com/sanity-labs/sanity-lint) checks one type
+definition at a time: icons, titles, descriptions, slug sources, field names.
+The built-in rules check the graph instead: what nothing uses, what a
+reference points at, what a preview costs. `fromSanityLint` turns Sanity
+Lint's schema rules into health rules, so both kinds of finding show up in the
+same panel. The plugin doesn't depend on the package, so install it in your
+Studio:
+
+```sh
+pnpm add @sanity-labs/schema-lint
+```
+
+```ts
+import {
+  defaultHealthRules,
+  fromSanityLint,
+} from '@maciejtrzcinski/sanity-plugin-schema-visualization/registry'
+import {rules} from '@sanity-labs/schema-lint'
+
+schemaVisualization({
+  healthRules: [...defaultHealthRules, ...fromSanityLint(rules)],
+})
+```
+
+Each rule gets its own group, with its id prefixed `sanity-lint/`
+(`sanity-lint/missing-icon`), so `without` and `replaceById` work on them like
+on any other rule. Several of Sanity Lint's rules match on naming patterns and
+read as suggestions, so you may prefer to pass only the ones you want:
+`fromSanityLint([missingIcon, missingTitle])`.
+
+- The rules read the types as you wrote them (`schema._original`), not the
+  compiled ones. Compilation gives every type and field a title and every
+  field a validation entry, which would hide what `missing-title` and the
+  validation rules look for.
+- `missing-define-type` and `missing-define-field` are left out. They need the
+  source files: `defineType` and `defineField` return their argument
+  unchanged, so a running Studio can't tell whether they were called.
+- `missing-slug-source` overlaps the built-in `slug-without-source`. The
+  built-in skips hidden slugs and is a note rather than a warning. Drop
+  whichever you don't want with `without`.
+- Sanity Lint's errors show as warnings, because the panel has only warnings
+  and notes. Messages are the package's own English text with its advice
+  appended. An issue is pinned to its type, since a finding doesn't say which
+  field it came from.
+- Outside a Studio, pass the schema too:
+  `computeHealthIssues(graph, {schema, rules})`.
 
 ### Starting view state
 
