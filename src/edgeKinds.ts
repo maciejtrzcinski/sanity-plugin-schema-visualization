@@ -3,12 +3,8 @@ import {catchAllOf, type ThemeColor, type Tone} from './registry'
 import type {GraphEdge, GraphEdgeKind} from './types'
 
 /**
- * Everything the app needs to know about one kind of connection, in one
- * place — how it's drawn on the canvas, what the legend calls it, and what
- * the detail panel badges it as. The same registry shape as `NodeKindDef`,
- * for the same reason: a custom `FieldDescriber` that emits a link of its own
- * kind (a cross-dataset reference, a portable-text annotation) registers a def
- * here and the canvas, legend and detail panel pick it up with no UI changes.
+ * One kind of connection: how it's drawn, what the legend calls it, how the
+ * detail panel badges it.
  *
  * @public
  */
@@ -24,17 +20,9 @@ export interface EdgeKindDef {
   dash?: string
   /** Sanity UI tone for the detail panel's connection badge. */
   tone: Tone
-  /**
-   * Badge text for one edge in the detail panel. Defaults to the kind id,
-   * which reads well for `reuses`; `reference` overrides it to call out a
-   * weak reference, which the id alone can't say. `t` translates against this
-   * plugin's namespace, so a custom edge kind localises the same way.
-   */
+  /** Badge text for one edge in the detail panel. Defaults to the kind id. */
   badgeLabel?: (edge: GraphEdge, t: TranslateFn) => string
-  /**
-   * Last resort. Any edge kind that isn't in the registry resolves here, so
-   * the edge is still drawn.
-   */
+  /** Any edge kind not in the registry resolves here. */
   isCatchAll?: boolean
 }
 
@@ -50,15 +38,8 @@ export const referenceKind: EdgeKindDef = {
 }
 
 /**
- * A `crossDatasetReference` or `globalDocumentReference` — a pointer at a
- * document outside this dataset. One kind for both, because what a reader needs
- * from the line is the same in either case ("this leaves the dataset"); which
- * of the two it is, and the dataset or resource it names, is on the field row
- * the edge came from.
- *
- * Only drawn when the target type name also exists in this schema — see
- * `crossDatasetReferenceDescriber` — so the style has to say "not a local
- * reference" at a glance: its own colour, and dashed like `reuses`.
+ * A `crossDatasetReference` or `globalDocumentReference`. Only drawn when the
+ * target type name also exists in this schema.
  *
  * @beta
  */
@@ -97,19 +78,11 @@ export const defaultEdgeKinds: readonly EdgeKindDef[] = [
   reusesKind,
 ]
 
-/**
- * Where an unrecognised edge kind resolves: the registry's `isCatchAll` kind,
- * or its last entry if none is flagged. Unlike a node kind, an edge kind isn't
- * chosen by a `classify` pass over the registry — it comes from whatever a
- * `FieldDescriber` put on its links, so an id no def covers is a describer and
- * a registry that disagree. Drawing that edge in the catch-all's style beats
- * crashing the canvas on a missing style.
- */
+/** The registry's `isCatchAll` kind, or its last entry. */
 export function catchAllEdgeKind(kinds: readonly EdgeKindDef[] = defaultEdgeKinds): EdgeKindDef {
   return catchAllOf(kinds, reusesKind)
 }
 
-/** Badge text for one edge — see `EdgeKindDef.badgeLabel`. */
 export function edgeBadgeLabel(edge: GraphEdge, kind: EdgeKindDef, t: TranslateFn): string {
   return kind.badgeLabel ? kind.badgeLabel(edge, t) : String(edge.kind)
 }

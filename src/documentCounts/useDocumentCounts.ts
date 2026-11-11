@@ -14,10 +14,7 @@ import {
   type StoredDocumentCounts,
 } from './index'
 
-/**
- * Matches the Studio's own default (`DEFAULT_STUDIO_CLIENT_OPTIONS`), and the
- * first version whose API takes a perspective stack with release ids in it.
- */
+/** The Studio's own default, and the first to take a perspective stack with release ids. */
 const API_VERSION = '2025-02-19'
 
 export interface DocumentCounts {
@@ -38,21 +35,8 @@ function fromCache(cached: StoredDocumentCounts): DocumentCountsState {
 }
 
 /**
- * On-demand per-type document counts.
- *
- * Never fetches on its own: `load` runs once per click, so opening the tool
- * costs no API calls. A click sends two count queries in parallel — one in
- * the Studio's current perspective (a release, drafts or published), and one
- * in `raw`, the only perspective that can tell published documents from
- * drafts.
- *
- * Counts belong to the perspective they were loaded under. Switch to another
- * and `state` reads as idle until the button is pressed again, rather than
- * showing numbers for a perspective the user isn't looking at.
- *
- * Perspectives are applied with `withConfig` rather than passed to
- * `useClient`: the Studio caches clients by `apiVersion` alone, so a
- * perspective handed to `useClient` would leak into every other caller.
+ * Never fetches on its own. Perspectives go through `withConfig`, not
+ * `useClient`: the Studio caches clients by `apiVersion` alone.
  */
 export function useDocumentCounts({
   enabled,
@@ -102,8 +86,7 @@ export function useDocumentCounts({
       })
     } catch (err) {
       const message = err instanceof Error ? err.message : t('document-counts.error-unknown')
-      // Keep whatever counts were already on screen for this perspective — a
-      // failed refresh shouldn't blank badges a reload would restore anyway.
+      // Keep the counts already on screen: a failed refresh shouldn't blank them.
       setLoaded((prev) => ({...prev, status: 'error', error: message}))
       toast.push({status: 'error', title: t('document-counts.error-title'), description: message})
     }

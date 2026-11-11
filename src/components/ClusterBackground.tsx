@@ -4,11 +4,6 @@ import {localized} from '../i18n'
 import type {ClusterBox} from '../layout'
 import {cssColor} from '../registry'
 
-/**
- * One colour per kind, at three strengths. `color-mix` keeps the band tied to
- * whatever the kind's colour resolves to in the current theme, dark mode
- * included.
- */
 function tintFor(color: string) {
   return {
     background: `color-mix(in srgb, ${color} 5%, transparent)`,
@@ -17,12 +12,6 @@ function tintFor(color: string) {
   }
 }
 
-/**
- * Renders one labeled background band per `ClusterBox`. Positioned via
- * `ViewportPortal` (flow-coordinate space, outside React Flow's node/edge
- * system) rather than as actual nodes, since these are pure decoration —
- * not draggable, selectable, or part of the graph.
- */
 export function ClusterBackgrounds({clusters}: {clusters: ClusterBox[]}) {
   const {kindById, catchAll} = useConfig()
   const t = useTranslate()

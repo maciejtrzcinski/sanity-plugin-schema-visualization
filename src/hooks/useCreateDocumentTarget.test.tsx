@@ -10,7 +10,6 @@ import {useCreateDocumentTarget} from './useCreateDocumentTarget'
 const resolveNewDocumentOptions = vi.fn()
 const workspace = {document: {resolveNewDocumentOptions}}
 
-/** An observable that answers once, like the grants store does once it has the user's grants. */
 const answer = {granted: true}
 const checkDocumentPermission = vi.fn(() => ({
   subscribe: ({next}: {next: (result: {granted: boolean; reason: string}) => void}) => {

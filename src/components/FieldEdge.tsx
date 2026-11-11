@@ -3,16 +3,7 @@ import {memo} from 'react'
 
 import type {FlowEdge} from '../flowModel'
 
-/**
- * A smoothstep edge whose field-name label is HTML rather than SVG text.
- *
- * React Flow sizes an SVG edge label's background with `getBBox`, which forces
- * a synchronous layout of the whole canvas — once per label. Selecting a
- * well-connected type lights a dozen labels at once, and on a 331-type schema
- * those measurements were the single largest cost of a click. An HTML label
- * in `EdgeLabelRenderer` needs no measuring: the browser sizes its background
- * with its text.
- */
+/** An HTML label: React Flow sizes SVG edge labels with `getBBox`, a forced layout per label. */
 function FieldEdgeComponent({
   id,
   sourceX,

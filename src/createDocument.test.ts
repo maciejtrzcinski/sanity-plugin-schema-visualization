@@ -16,8 +16,6 @@ describe('createDocumentTarget', () => {
     expect(createDocumentTarget(post, documentKind, [option()])).toEqual({params: {type: 'post'}})
   })
 
-  // The singleton recipes either drop the type's template or filter it out of
-  // `newDocumentOptions`; both leave nothing for the type here.
   it('offers nothing when the Studio’s own create menu doesn’t offer the type', () => {
     expect(createDocumentTarget(post, documentKind, [])).toBeUndefined()
     expect(

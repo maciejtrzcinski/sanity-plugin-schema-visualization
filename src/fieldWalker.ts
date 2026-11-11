@@ -11,15 +11,11 @@ import {defaultTranslate, type TranslateFn} from './i18n'
 import {INTRINSIC_FIELD_NAMES} from './intrinsics'
 import type {FieldLink, FieldOptionSummary} from './types'
 
-/** How deep the walker descends into anonymous nested types before giving up. */
 export const DEFAULT_MAX_DEPTH = 8
 
 /** @public */
 export interface WalkContext {
-  /**
-   * Path to the type being described, rooted at the field name — e.g.
-   * `"cover.credit"`, `"body[].markDefs[].author"`. Used to label edges.
-   */
+  /** Path rooted at the field name, e.g. `"body[].markDefs[].author"`. Labels edges. */
   path: string
   depth: number
   maxDepth: number
@@ -27,19 +23,9 @@ export interface WalkContext {
   isRegistered: (name: string) => boolean
   /** Types already on the current descent path, guarding against cyclic compiled types. */
   seen: ReadonlySet<SchemaType>
-  /**
-   * A type name that must not be treated as "a registered type this field
-   * reuses". Set when walking the type that *owns* the field, so the walk
-   * descends into it instead of stopping at a self-referential reuse edge —
-   * how a registered array type reaches its own members.
-   */
+  /** Walked into, not read as a reuse — how a registered array type reaches its members. */
   selfName?: string
-  /**
-   * Translates against this plugin's namespace, for the parts of a
-   * `typeLabel` that are words rather than type names ("array of …") and for
-   * a describer's own option badges. A custom describer localises through
-   * this; one that ignores it simply returns the string it always did.
-   */
+  /** Translates against this plugin's namespace. */
   t: TranslateFn
 }
 
@@ -72,12 +58,8 @@ export interface FieldDescriberRule {
 }
 
 /**
- * One rule for turning a compiled schema type into a label plus the
- * connections it implies. The first describer whose `match` returns true
- * wins, so order is significant — see {@link defaultFieldDescribers}.
- *
- * Keyed by `id` like every other registry, which is what `insertBefore`,
- * `replaceById` and `without` look up.
+ * Turns a compiled schema type into a label plus the connections it implies.
+ * The first describer whose `match` returns true wins.
  *
  * @public
  */
@@ -99,9 +81,7 @@ export function getTypeOptions(type: SchemaType): CommonFieldOptions | undefined
   return options && typeof options === 'object' ? options : undefined
 }
 
-/**
- * True when a compiled type's name is just its own jsonType (an inline, unnamed alias).
- */
+/** An inline, unnamed alias: its name is just its jsonType. */
 export function isAnonymousType(type: SchemaType): boolean {
   return type.name === type.jsonType
 }
@@ -113,18 +93,7 @@ function childPath(path: string, segment: string): string {
 
 const empty = (typeLabel: string): DescribeResult => ({typeLabel, links: [], options: []})
 
-/**
- * True when `type` is the named intrinsic, or an alias of it — a registered
- * type declared as `{type: 'crossDatasetReference', …}` compiles to a chain
- * ending at the intrinsic, the same shape `isReferenceSchemaType` walks.
- *
- * Sanity ships no usable guard for either of the two reference-like intrinsics
- * this covers: `isCrossDatasetReferenceSchemaType` lives in `@sanity/types`
- * but isn't re-exported by `sanity`, and there is no
- * `isGlobalDocumentReferenceSchemaType` at all. The walk is bounded rather
- * than recursive so that a self-referential `type` link degrades to "no match"
- * instead of hanging the graph build.
- */
+/** Bounded rather than recursive, so a self-referential `type` link can't hang the build. */
 export function isAliasOf(type: SchemaType, name: string): boolean {
   let current: SchemaType | undefined = type
   for (let depth = 0; current && depth <= 32; depth++) {
@@ -134,13 +103,7 @@ export function isAliasOf(type: SchemaType, name: string): boolean {
   return false
 }
 
-/**
- * Narrowed to Sanity's own declared shape rather than to a local guess at it,
- * so a rename on their side (`dataset`, `resourceId`, `to`) fails this build
- * instead of quietly reading `undefined` in a user's Studio. Both are `@beta`
- * there; the intersection is what makes the predicate assignable to
- * `SchemaType`, since neither is a member of that union.
- */
+/** Sanity's own declared shape, so a rename there fails this build, not reads `undefined`. */
 function isCrossDatasetReference(
   type: SchemaType,
 ): type is SchemaType & CrossDatasetReferenceSchemaType {
@@ -153,11 +116,6 @@ function isGlobalDocumentReference(
   return isAliasOf(type, 'globalDocumentReference')
 }
 
-/**
- * The badges every reference-like type shares: a weak reference doesn't keep
- * the target from being deleted, a `filter` narrows what the input offers, and
- * `disableNew` takes away the input's "Create new" button.
- */
 function referenceOptions(type: SchemaType, weak: boolean, ctx: WalkContext): FieldOptionSummary[] {
   const options: FieldOptionSummary[] = []
   const typeOptions = getTypeOptions(type)
@@ -169,22 +127,12 @@ function referenceOptions(type: SchemaType, weak: boolean, ctx: WalkContext): Fi
   return options
 }
 
-/**
- * Target type names off a cross-dataset or global document reference. Unlike
- * `reference`, whose `to` entries are compiled schema types, these carry the
- * target as a plain `type` string — the target lives in another dataset, so
- * there is no compiled type here to point at.
- */
 function externalTargets(to: readonly {type?: string}[] | undefined): string[] {
   return (to ?? []).map((entry) => entry.type).filter((name): name is string => Boolean(name))
 }
 
 /**
- * A `reference` field. Always terminal — the target types get their own
- * nodes, so there is nothing below this worth descending into. Ordered first
- * so that a registered reference alias — a type declared directly as
- * `type: 'reference'` — still surfaces what it actually points at, rather
- * than only a "reuses" edge to a type with no visible targets.
+ * Ordered first so a registered reference alias still surfaces its targets.
  *
  * @beta
  */
@@ -207,19 +155,8 @@ export const referenceDescriber: FieldDescriber = {
 }
 
 /**
- * A `crossDatasetReference` field — a pointer at a document in another dataset
- * of the same project. Terminal, like `reference`, and ordered beside it so a
- * registered alias (`{name: 'sharedAuthor', type: 'crossDatasetReference'}`)
- * still reports what it points at.
- *
- * The target type is named by a string rather than a compiled type, because it
- * belongs to the *other* dataset's schema — Sanity can't resolve it here,
- * which is why `to` entries carry their own `preview`. So the `external-reference`
- * link it emits only becomes a drawn edge when this schema happens to hold a
- * type of that name, the common case being one schema deployed to both
- * datasets; otherwise the connection lives on in the field's label and its
- * `dataset` badge, and `buildGraph` drops the dangling edge. The distinct edge
- * kind is what keeps that edge from reading as a local reference.
+ * The target is named by string, from the other dataset's schema, so it's only
+ * drawn when this schema holds a type of that name.
  *
  * @beta
  */
@@ -249,11 +186,7 @@ export const crossDatasetReferenceDescriber: FieldDescriber = {
 }
 
 /**
- * A `globalDocumentReference` field — a pointer at a document in another
- * resource entirely (another dataset, a media library), named by
- * `resourceType:resourceId`. Otherwise exactly
- * {@link crossDatasetReferenceDescriber}: terminal, target types named by
- * string, same `external-reference` edge kind.
+ * Like {@link crossDatasetReferenceDescriber}, for a `resourceType:resourceId` target.
  *
  * @beta
  */
@@ -285,13 +218,8 @@ export const globalDocumentReferenceDescriber: FieldDescriber = {
 }
 
 /**
- * A field whose type is one the author registered. Terminal by design: that
- * type has its own node carrying its own fields and outgoing edges, so
- * descending here would duplicate them onto every type that reuses it.
- *
- * Ordered ahead of the structural describers so a registered *array* type
- * (`blockContent`, `tags`) produces a "reuses" edge rather than floating
- * unconnected.
+ * Terminal: the registered type has its own node. Ahead of the structural
+ * describers so a registered array type gets a "reuses" edge.
  *
  * @beta
  */
@@ -300,8 +228,7 @@ export const namedTypeDescriber: FieldDescriber = {
   match: (type, ctx) =>
     ctx.isRegistered(type.name) && !isAnonymousType(type) && type.name !== ctx.selfName,
   describe: (type, ctx) => ({
-    // Nested, the jsonType suffix just adds noise inside a longer label
-    // ("array of seo (object)"); at the top level it's the useful part.
+    // Nested, the jsonType suffix is noise ("array of seo (object)").
     typeLabel:
       ctx.depth === 0
         ? ctx.t('field.named-type-label', {name: type.name, jsonType: type.jsonType})
@@ -311,11 +238,7 @@ export const namedTypeDescriber: FieldDescriber = {
   }),
 }
 
-/**
- * An array: descends into every member type.
- *
- * @beta
- */
+/** @beta */
 export const arrayDescriber: FieldDescriber = {
   id: 'array',
   match: (type) => isArraySchemaType(type),
@@ -339,10 +262,7 @@ export const arrayDescriber: FieldDescriber = {
 }
 
 /**
- * An anonymous object — an inline `{type: 'object', fields: [...]}`, a
- * customized `image`/`file`, a portable-text `block`, an annotation. Descends
- * into the fields the author added, skipping the built-in shape of whatever
- * intrinsic type it extends (see `INTRINSIC_FIELD_NAMES`).
+ * An anonymous object. Skips the built-in fields of the intrinsic it extends.
  *
  * @beta
  */
@@ -361,11 +281,7 @@ export const objectDescriber: FieldDescriber = {
   },
 }
 
-/**
- * Anything else — a primitive, or a type no other describer claimed.
- *
- * @beta
- */
+/** @beta */
 export const fallbackDescriber: FieldDescriber = {
   id: 'fallback',
   match: () => true,
@@ -373,11 +289,8 @@ export const fallbackDescriber: FieldDescriber = {
 }
 
 /**
- * Order is the contract: terminal/naming rules first, structural recursion
- * after, catch-all last. Callers extending this should place their describer
- * ahead of the built-in it needs to pre-empt rather than appending, since
- * `fallbackDescriber` matches everything. `insertBefore` with the anchor
- * `'namedType'` does that without knowing the order here.
+ * Order is the contract: terminal rules first, structural recursion after,
+ * catch-all last. Insert a describer ahead of the built-in it pre-empts.
  *
  * @public
  */
@@ -391,11 +304,6 @@ export const defaultFieldDescribers: readonly FieldDescriber[] = [
   fallbackDescriber,
 ]
 
-/**
- * Describes a compiled schema type, recursing through arrays, inline objects
- * and portable-text blocks to collect every reference/reuse connection
- * underneath it — not just the ones declared at the top level of a type.
- */
 export function walkFieldType(
   type: SchemaType,
   ctx: WalkContext,
@@ -419,7 +327,6 @@ export function walkFieldType(
   return describer.describe(type, ctx, recurse)
 }
 
-/** Builds the root {@link WalkContext} for a field named `fieldName`. */
 export function rootWalkContext(
   fieldName: string,
   isRegistered: (name: string) => boolean,

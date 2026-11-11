@@ -22,13 +22,6 @@ import {buildViewPrefsStorageKey} from './viewPrefs'
 
 const HEALTH_PANEL_INSET = 12
 
-/**
- * Catches anything thrown while deriving or rendering the graph — an
- * unexpected schema shape in `schemaToGraph`, a throwing custom
- * `FieldDescriber`, a render crash — so a bug here degrades to an error card
- * instead of white-screening the whole Studio tool pane. Health rules are
- * already guarded individually in `computeHealthIssues`; this covers the rest.
- */
 class VisualizationErrorBoundary extends Component<
   {children: ReactNode; title: string},
   {error: Error | null}
@@ -59,11 +52,7 @@ class VisualizationErrorBoundary extends Component<
 }
 
 export function SchemaVisualizationTool({tool}: {tool: Tool<SchemaVisualizationOptions>}) {
-  // `tool.options` is a stable object from the plugin definition, but memoize
-  // the fallback so an unconfigured tool doesn't rebuild the config each render.
   const options = useMemo(() => tool.options ?? {}, [tool.options])
-  // The boundary is a class component, so it takes its one string as a prop
-  // rather than reading the locale itself.
   const t = useTranslate()
 
   return (
@@ -84,10 +73,7 @@ function SchemaVisualization({toolName}: {toolName: string}) {
 
   const graph = useSchemaGraph(schema)
 
-  // Scoped to project + dataset + env + workspace + this tool instance, not
-  // just the origin — critical in local dev, where many unrelated projects'
-  // Studios all share `localhost:3333` and would otherwise clobber each
-  // other's prefs through plain `localStorage`.
+  // Scoped past the origin: local Studios all share `localhost:3333`.
   const storageKey = useMemo(
     () =>
       buildViewPrefsStorageKey({
@@ -103,15 +89,11 @@ function SchemaVisualization({toolName}: {toolName: string}) {
 
   const storedPrefs = useStoredViewPrefs(storageKey)
 
-  // Same reason the storage key is scoped: two Studios open side by side both
-  // download `schema-graph.svg` otherwise, and the second replaces the first.
   const exportFileName = useMemo(
     () => svgExportFileName({workspaceName: workspace.name, dataset: workspace.dataset}),
     [workspace.name, workspace.dataset],
   )
 
-  // Which types are worth a `count()` query: the kinds that opted into
-  // `countsDocuments`, minus Sanity's own system types.
   const documentTypeNames = useMemo(
     () =>
       graph.nodes.filter((n) => config.docCountKinds.has(n.kind) && !n.isSystem).map((n) => n.name),
@@ -131,9 +113,6 @@ function SchemaVisualization({toolName}: {toolName: string}) {
     [healthIssues],
   )
 
-  // Every per-node datum the schema can't supply, in one map keyed by node id.
-  // Doc counts are the only source today; a second one joins here rather than
-  // growing a prop on the canvas, the card, the layout estimate and the panel.
   const annotations = useMemo(
     () =>
       documentCountAnnotations(
@@ -174,11 +153,7 @@ function SchemaVisualization({toolName}: {toolName: string}) {
     }
   }, [toast, t])
 
-  // Only offer nodes that currently match the active filters, so a pick from
-  // this list is always something the canvas can actually show — e.g. with
-  // "Only deprecated" active, only deprecated types show up here. The current
-  // focus is kept regardless: a filter change doesn't clear it (see
-  // `coreReducer`), so the combobox still needs its label.
+  // Only types the filters show; the current focus keeps its label regardless.
   const focusOptions = useMemo(
     () =>
       graph.nodes
@@ -237,10 +212,7 @@ function SchemaVisualization({toolName}: {toolName: string}) {
             exportFileName={exportFileName}
           />
           {showHealthPanel && (
-            // A flex column, so the panel shrinks to this box's max height and
-            // scrolls inside — a percentage max height on the panel itself
-            // would resolve against this box's auto height, i.e. to nothing.
-            // It stops above the zoom controls in the same corner.
+            // A flex column so the panel scrolls inside; a % max height would resolve to nothing.
             <Box
               style={{
                 position: 'absolute',

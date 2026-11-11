@@ -1,12 +1,4 @@
 // @vitest-environment jsdom
-/**
- * The router here is the real Studio one, driven by a harness that holds its
- * state the way the Studio provider does: `navigate` calls arrive as a path,
- * are decoded back into router state and re-render. A test can also push state
- * in without going through the hook, which is how a browser back, an intent or
- * a link into the tool reaches it — the case the hook has to tell apart from
- * its own writes.
- */
 import {act, renderHook} from '@testing-library/react'
 import {useSyncExternalStore, type ReactNode} from 'react'
 import {route, RouterProvider, type RouterState} from 'sanity/router'
@@ -26,7 +18,6 @@ import {usePersistedViewPrefs, useViewState} from './useViewState'
 const router = route.create('/')
 const systemFilter = createDefaultFilters().find((def) => def.id === 'system')!
 
-/** The history the harness renders from: a store, so nothing is set in render. */
 const listeners = new Set<() => void>()
 let routerState: RouterState = {}
 let navigations: string[] = []
@@ -36,7 +27,6 @@ function setRouterState(next: RouterState) {
   for (const listener of listeners) listener()
 }
 
-/** A navigation the hook didn't make. */
 function navigateOutside(next: RouterState) {
   act(() => setRouterState(next))
 }
@@ -92,16 +82,12 @@ describe('useViewState', () => {
 
     expect(result.current.searchQuery).toBe('hero')
     expect(result.current.focusNodeId).toBe('post')
-    // Focus implies selection, so `selected` doesn't have to be in the link.
     expect(result.current.selectedNodeId).toBe('post')
     expect(result.current.filters.system).toEqual(['1'])
-    // Nothing to correct, so the hook leaves the URL alone.
     expect(navigations).toEqual([])
   })
 
   it('drops a focus the graph cannot show', () => {
-    // A link that outlived its type, and one pointing at a system type while
-    // the system filter (at its default) hides it.
     const gone = renderViewState({_searchParams: [['focus', 'ghost']]})
     expect(gone.result.current.focusNodeId).toBeNull()
     gone.unmount()
@@ -123,9 +109,6 @@ describe('useViewState', () => {
     act(() => result.current.setFocus('post'))
     expect(navigations.at(-1)).toBe('/?focus=post')
 
-    // A browser back over that `replace`, an intent, a link into the tool:
-    // whatever the router now holds is the view, and the stale focus must not
-    // be replaced back over it.
     navigateOutside({_searchParams: [['q', 'author']]})
 
     expect(result.current.searchQuery).toBe('author')
@@ -158,16 +141,10 @@ describe('useViewState', () => {
     })
 
     expect(result.current.searchQuery).toBe('hero')
-    // No adoption, and no navigation that would drop the foreign param.
     expect(navigations).toHaveLength(written)
   })
 })
 
-/**
- * The write-back half. `saveViewPrefs`/`loadViewPrefs` are covered directly in
- * `src/viewPrefs.test.ts` — what's asserted here is *when* this hook decides
- * there is something worth writing, which is where a cached result can be lost.
- */
 describe('usePersistedViewPrefs', () => {
   const prefs: SessionPrefs = {
     compactMode: false,
@@ -182,7 +159,6 @@ describe('usePersistedViewPrefs', () => {
     perspective: 'drafts',
     fetchedAt,
   })
-  /** What `loaded` persists as. */
   const persisted = (counts: Record<string, number>, fetchedAt = 1700000000000) => ({
     counts,
     breakdown: {},
@@ -227,12 +203,6 @@ describe('usePersistedViewPrefs', () => {
     })
   })
 
-  /**
-   * The bug this guards: clicking Refresh takes the state through `loading`,
-   * where `counts` is whatever the hook holds and there is nothing worth
-   * persisting. Writing that transition would replace a good cache with an
-   * empty one, and the next session would start blank for no reason.
-   */
   it('keeps the cached counts through a refresh that has not landed yet', () => {
     const key = 'prefs:refresh'
     const {rerender} = renderPersisted(key)
@@ -251,7 +221,6 @@ describe('usePersistedViewPrefs', () => {
     })
     expect(stored(key)?.cache.documentCounts).toEqual(persisted({post: 47}))
 
-    // A load that does land replaces them.
     rerender({documentCounts: loaded([['post', 48]], 1700000060000)})
     expect(stored(key)?.cache.documentCounts).toEqual(persisted({post: 48}, 1700000060000))
   })
@@ -268,23 +237,13 @@ describe('usePersistedViewPrefs', () => {
     expect(stored(key)?.cache.documentCounts).toEqual(restored)
   })
 
-  /**
-   * `documentCounts` is a fresh object on every status change, so the effect
-   * re-runs for each of them. Without the hook's own "is any of this new?"
-   * check, a button that only ever transitions loading → error → loading would
-   * write the same bytes back to disk on every click.
-   *
-   * Asserted through a sentinel rather than a spy: jsdom's `localStorage` is a
-   * proxy, and a `vi.spyOn` on it never sees the hook's own `setItem`.
-   */
+  /** A sentinel, not a spy: `vi.spyOn` on jsdom's `localStorage` proxy never sees `setItem`. */
   it('does not rewrite storage for a status change that persists nothing new', () => {
     const key = 'prefs:idempotent'
     const {rerender} = renderPersisted(key)
     rerender({documentCounts: loaded([['post', 47]])})
 
     window.localStorage.setItem(key, 'untouched')
-    // Distinct objects each time — only the hook's own check can tell that none
-    // of them says anything new.
     rerender({documentCounts: {status: 'loading', counts: new Map(), breakdown: new Map()}})
     rerender({
       documentCounts: {status: 'error', counts: new Map(), breakdown: new Map(), error: 'offline'},
@@ -293,7 +252,6 @@ describe('usePersistedViewPrefs', () => {
 
     expect(window.localStorage.getItem(key)).toBe('untouched')
 
-    // A load that does land writes again, sentinel or not.
     rerender({documentCounts: loaded([['post', 99]], 1700000999000)})
     expect(stored(key)?.cache.documentCounts).toEqual(persisted({post: 99}, 1700000999000))
   })

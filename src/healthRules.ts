@@ -21,12 +21,7 @@ export interface HealthIssue {
   message: string
 }
 
-/**
- * How an issue of a given severity is painted, wherever one shows up — the
- * health panel's groups and cards, a node's issue badge, the detail panel.
- * Everything reads this, so a `severity: 'info'` rule can't look like a
- * warning in one place and a note in another.
- */
+/** Every surface paints severity through this, so `info` never looks like `warning`. */
 export function severityTone(severity: HealthSeverity): Tone {
   return severity === 'warning' ? 'caution' : 'primary'
 }
@@ -43,33 +38,13 @@ export interface HealthContext {
   incomingCount: Map<string, number>
   /** Types the author registered — system types are never reported against. */
   customNodes: GraphNode[]
-  /**
-   * The kind registry in force, indexed by id. Rules read the capability flags
-   * off it (`reportsOrphans`, `isReferenceTarget`) instead of testing
-   * `node.kind` against a built-in id, so a custom kind registry keeps them
-   * working. A kind id missing from the map is a node that outlived its kind —
-   * treat it as opting into nothing.
-   */
+  /** The kind registry in force. A kind id missing from it opts into nothing. */
   kindById: Map<GraphNodeKind, NodeKindDef>
-  /**
-   * Live document counts by type name, in the Studio's current perspective.
-   * Empty until someone presses "Load doc counts", so a missing entry means
-   * "not known yet", not zero.
-   */
+  /** Document counts by type name. Empty until loaded: missing means unknown, not zero. */
   docCountByType: ReadonlyMap<string, number>
-  /**
-   * The compiled schema the graph was built from, for a rule that needs what
-   * the graph leaves out. Always set inside the Studio; outside it, only when
-   * the caller passes one to `computeHealthIssues`, so a rule reading it should
-   * stand down when it's missing.
-   */
+  /** The compiled schema. Always set in the Studio; a rule needing it stands down without. */
   schema?: Schema
-  /**
-   * Translates against this plugin's namespace. Rules build their messages
-   * through it — including the built-ins below — so a custom rule localises
-   * exactly the way they do, and so a rule run outside a Studio still reads
-   * as English.
-   */
+  /** Translates against this plugin's namespace. */
   t: TranslateFn
 }
 
@@ -124,9 +99,7 @@ export const referenceTargetRule: HealthRule = {
   i18n: {label: 'health.rule.reference-target.label'},
   severity: 'warning',
   check: ({customNodes, nodesById, kindById, t}) => {
-    // What a reference is allowed to point at, named for the message. With no
-    // kind claiming `isReferenceTarget` there's nothing to judge against, so
-    // the rule stands down rather than flagging every reference in the schema.
+    // With no reference-target kind there's nothing to judge against.
     const targetKinds = [...kindById.values()].filter((kind) => kind.isReferenceTarget)
     if (targetKinds.length === 0) return []
     const expected = targetKinds
@@ -210,11 +183,7 @@ export const requiredHiddenRule: HealthRule = {
     ),
 }
 
-/**
- * More than one hop is where a preview gets expensive: every row in a document
- * list resolves its preview, and each reference crossed on the way is another
- * document to fetch and listen to.
- */
+/** Each reference a preview crosses is another document every list row fetches and listens to. */
 const MAX_PREVIEW_DEREFERENCES = 1
 
 /** @beta */
@@ -290,9 +259,7 @@ export interface AttributePathsRuleOptions {
 }
 
 /**
- * Sanity caps the distinct attribute paths a dataset may hold, and the schema
- * decides how many its documents can write. The issue lands on the custom
- * document type contributing the most, since that's where restructuring pays.
+ * Reported on the custom document type contributing the most paths.
  *
  * @beta
  */
@@ -339,9 +306,7 @@ export function createAttributePathsRule({
 export const attributePathsRule: HealthRule = createAttributePathsRule()
 
 /**
- * Every rule here is a Sanity authoring gotcha, unambiguous dead code, or a
- * cost the Content Lake will bill or cap — things easy to miss by eye once a
- * schema has more than a handful of types.
+ * Authoring gotchas, dead code, and Content Lake costs that are easy to miss.
  *
  * @public
  */
@@ -356,12 +321,10 @@ export const defaultHealthRules: readonly HealthRule[] = [
   emptyDocumentTypeRule,
 ]
 
-/** The slice of the resolved plugin config that running the health rules reads. */
 type HealthConfig = Pick<ResolvedConfig, 'healthRules' | 'kindById'>
 
 const NO_DOC_COUNTS: ReadonlyMap<string, number> = new Map()
 
-/** What a run reads beyond the graph and the rules, all optional. */
 interface HealthRunInputs {
   t?: TranslateFn
   docCountByType?: ReadonlyMap<string, number>
@@ -399,17 +362,12 @@ export interface ComputeHealthIssuesOptions {
   t?: TranslateFn
   /** Document counts by type name, for the rules that judge them. */
   docCountByType?: ReadonlyMap<string, number>
-  /**
-   * The compiled schema the graph came from, for the rules that read it —
-   * the ones `fromSanityLint` builds. Without it they report nothing.
-   */
+  /** The compiled schema, for the rules `fromSanityLint` builds. Without it they report nothing. */
   schema?: Schema
 }
 
 /**
- * Runs each rule over the graph and stamps its id and severity onto what comes
- * back. A rule that throws is skipped rather than taking the whole panel down
- * with it — a custom rule shouldn't be able to break the tool.
+ * Runs each rule over the graph. A rule that throws is skipped.
  *
  * @public
  */
@@ -424,7 +382,6 @@ export function computeHealthIssues(
   return runHealthRules(graph, {healthRules: rules, kindById: indexById(kinds)}, inputs)
 }
 
-/** {@link computeHealthIssues} for a caller that already holds a resolved config. */
 export function runHealthRules(
   graph: SchemaGraph,
   config: HealthConfig,
@@ -455,7 +412,6 @@ export function runHealthRules(
   return issues
 }
 
-/** Groups issues by rule, in the order the rules were given. */
 export function groupIssuesByRule(
   issues: readonly HealthIssue[],
   rules: readonly HealthRule[],

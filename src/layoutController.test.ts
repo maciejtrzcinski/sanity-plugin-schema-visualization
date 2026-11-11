@@ -9,12 +9,10 @@ import {LayoutController, type CardOptions, type RebuildOptions} from './layoutC
 import {indexById} from './registry'
 import type {SchemaGraph} from './types'
 
-/** Flat heights, so a test can say exactly what it expects a card to be worth. */
 const COLLAPSED = 100
 const EXPANDED = 300
 const byExpanded = (node: FlowNode) => (node.data.expanded ? EXPANDED : COLLAPSED)
 
-/** Stable, like the `useCallback` the canvas passes: a new one changes every card. */
 const onToggleExpand = () => {}
 
 function rebuildOptions(overrides: Partial<RebuildOptions> = {}): RebuildOptions {
@@ -45,11 +43,6 @@ function cardOptions(overrides: Partial<CardOptions> = {}): CardOptions {
   }
 }
 
-/**
- * Two unconnected types of the same kind. Dagre ranks both at x = 0, one above
- * the other and with no cluster bands in the way — the simplest shape in which
- * "a card grew, so what's under it moves down" is a statement about one number.
- */
 const stacked: SchemaGraph = {
   nodes: [makeNode({id: 'a'}), makeNode({id: 'b'})],
   edges: [],
@@ -59,7 +52,6 @@ function positionsById(nodes: FlowNode[]): Map<string, {x: number; y: number}> {
   return new Map(nodes.map((n) => [n.id, n.position]))
 }
 
-/** The stacked pair, top one first. */
 function topAndBottom(nodes: FlowNode[]): [FlowNode, FlowNode] {
   const [top, bottom] = [...nodes].sort((x, y) => x.position.y - y.position.y)
   return [top, bottom]
@@ -76,7 +68,6 @@ describe('LayoutController', () => {
 
     expect(state.nodes.map((n) => n.id)).toEqual(['post', 'author', 'seo', 'sanity.imageAsset'])
     expect(state.edges.map((e) => e.id)).toEqual([authorEdge.id, seoEdge.id])
-    // Three kinds are present, so dagre gives each its own band.
     expect(state.clusters.map((c) => c.kind).sort()).toEqual(['document', 'object', 'other'])
     expect(controller.state).toBe(state)
   })
@@ -130,14 +121,10 @@ describe('LayoutController', () => {
 
     const after = positionsById(patched.nodes)
     expect(after.get(top.id)).toEqual(top.position)
-    // The card above it grew by EXPANDED - COLLAPSED, and the gap dagre chose
-    // is preserved exactly.
     expect(after.get(bottom.id)!.y).toBe(bottom.position.y + EXPANDED - COLLAPSED)
     expect(after.get(bottom.id)!.x).toBe(bottom.position.x)
   })
 
-  // Loading doc counts can raise health issues; the card's issue badge has to
-  // follow without dagre re-running and the viewport re-framing.
   it('patches a card whose health issues changed, leaving the rest alone', () => {
     const controller = new LayoutController()
     const state = controller.rebuild(graph, rebuildOptions())
@@ -161,12 +148,9 @@ describe('LayoutController', () => {
     const controller = new LayoutController(false)
     const expanded = controller.rebuild(stacked, rebuildOptions())
 
-    // Both effects fire for a compact-mode change; the patch declines, so the
-    // cards keep the positions the rebuild is about to replace.
     expect(controller.patch(cardOptions({compactMode: true}))).toBe(expanded)
     expect(expanded.nodes.every((n) => n.data.expanded)).toBe(true)
 
-    // Once the switch has been seen, a later patch in that mode is honoured.
     const compact = controller.rebuild(stacked, rebuildOptions({compactMode: true}))
     const [top] = topAndBottom(compact.nodes)
     const patched = controller.patch(
@@ -180,13 +164,10 @@ describe('LayoutController', () => {
     const laidOut = controller.rebuild(stacked, rebuildOptions({compactMode: true}))
     const [top, bottom] = topAndBottom(laidOut.nodes)
 
-    // The layout reserved COLLAPSED for it; React Flow says it renders taller.
     const {state, remeasured} = controller.applyChanges([dimensionChange(top.id, EXPANDED + 0.4)])
     expect(remeasured).toBe(true)
     expect(state.nodes.find((n) => n.id === top.id)!.measured?.height).toBe(EXPANDED + 0.4)
 
-    // The measurement is rounded, so sub-pixel jitter can't re-trigger this
-    // forever: the same height again is not news.
     expect(controller.applyChanges([dimensionChange(top.id, EXPANDED + 0.2)]).remeasured).toBe(
       false,
     )
@@ -197,7 +178,6 @@ describe('LayoutController', () => {
     const after = positionsById(reflowed.nodes)
     expect(after.get(bottom.id)!.y).toBe(bottom.position.y + EXPANDED - COLLAPSED)
 
-    // Nothing measured since, so there is nothing to move.
     expect(controller.reflow(estimate)).toBe(reflowed)
   })
 
@@ -210,9 +190,6 @@ describe('LayoutController', () => {
     const estimate = vi.fn(byExpanded)
     controller.patch(cardOptions({compactMode: true, expandedNodeIds: new Set([top.id]), estimate}))
 
-    // The expanded card is about to render taller than it measured, so its
-    // measurement is dropped and it is sized by estimate again; the card that
-    // didn't change keeps the height React Flow measured on it.
     expect(estimate).toHaveBeenCalledWith(expect.objectContaining({id: top.id}))
     expect(estimate).not.toHaveBeenCalledWith(expect.objectContaining({id: bottom.id}))
   })
@@ -226,8 +203,6 @@ describe('LayoutController', () => {
     controller.rebuild(stacked, rebuildOptions({estimate}))
     expect(estimate).not.toHaveBeenCalledWith(expect.objectContaining({id: 'a'}))
 
-    // A card whose data changed is about to render differently, so its
-    // measurement goes.
     const changed = vi.fn(byExpanded)
     controller.rebuild(
       stacked,
@@ -260,7 +235,6 @@ describe('LayoutController', () => {
       return {x, y, width: Math.max(...xs) + NODE_WIDTH - x, height: Math.max(...ys) + EXPANDED - y}
     }
 
-    // `seo` hangs off `post` too, but not off `author`, so it widens one frame only.
     expect(box(['author', 'post'])).not.toEqual(box(['post', 'author', 'seo']))
     expect(controller.neighbourhoodBounds('author')).toEqual(box(['author', 'post']))
     expect(controller.neighbourhoodBounds('post')).toEqual(box(['post', 'author', 'seo']))

@@ -15,7 +15,6 @@ import {readValidation} from './validation'
 let warn: ReturnType<typeof vi.spyOn>
 
 beforeEach(() => {
-  // Warnings are once-per-session, so each case starts from a clean slate.
   resetBrokenAssumptions()
   warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
 })
@@ -24,11 +23,7 @@ afterEach(() => {
   warn.mockRestore()
 })
 
-/**
- * The compiled type of one field on `post`. Badges read a *compiled* type —
- * `hidden`, `readOnly` and `deprecated` all get normalized on the way in — so
- * the fixtures go through `createSchema` rather than being hand-built.
- */
+/** Badges read a compiled type, so the fixtures go through `createSchema`. */
 function fieldType(field: ReturnType<typeof defineField>): SchemaType {
   const schema = createSchema({
     name: 'test',
@@ -46,7 +41,6 @@ function labels(field: ReturnType<typeof defineField>, required = false): string
   return collectFieldBadges(type, {name: 'field', required}).map((badge) => badge.label)
 }
 
-/** Labels with validation read the way `schemaToGraph` reads it. */
 function validatedLabels(field: ReturnType<typeof defineField>): string[] {
   const type = fieldType(field)
   const {required, constraints} = readValidation(type)
@@ -57,8 +51,6 @@ function validatedLabels(field: ReturnType<typeof defineField>): string[] {
 
 describe('defaultFieldBadges', () => {
   it('badges a field required by validation', () => {
-    // `required` is resolved centrally from the compiled Rule and handed in,
-    // rather than each badge re-reading `type.validation`.
     expect(labels(defineField({name: 'title', type: 'string'}), true)).toEqual(['required'])
     expect(labels(defineField({name: 'title', type: 'string'}), false)).toEqual([])
   })
@@ -70,8 +62,6 @@ describe('defaultFieldBadges', () => {
     expect(labels(defineField({name: 'slug', type: 'string', hidden: true}))).toEqual(['hidden'])
   })
 
-  // A callback can't be evaluated statically, so it gets its own label rather
-  // than being read as an unconditional flag.
   it('tells a conditional `hidden` apart from an unconditional one', () => {
     expect(labels(defineField({name: 'slug', type: 'string', hidden: () => true}))).toEqual([
       'conditionally hidden',
@@ -134,7 +124,6 @@ describe('defaultFieldBadges', () => {
     expect(validatedLabels(end)).toEqual(['integer · > field start'])
   })
 
-  // Every slug carries a validator Sanity adds itself; it isn't the author's.
   it('does not call Sanity’s own slug validator a custom rule', () => {
     expect(validatedLabels(defineField({name: 'slug', type: 'slug'}))).toEqual([])
     expect(
@@ -183,9 +172,6 @@ describe('collectFieldBadges', () => {
     const always: FieldBadgeDef = {id: 'always', badge: () => ({label: 'always'})}
 
     const type = fieldType(defineField({name: 'title', type: 'string'}))
-    // Each badge is stamped with the id of the def that produced it, so the
-    // card and the panel have a stable key for a list where two options can
-    // share a label.
     expect(collectFieldBadges(type, {name: 'title', required: false}, [always, localized])).toEqual(
       [{id: 'always', label: 'always'}],
     )
@@ -217,8 +203,6 @@ describe('collectFieldBadges', () => {
     expect(seen).toEqual(['title'])
   })
 
-  // A bad badge should cost its own badge, not the graph — the same bargain
-  // `computeHealthIssues` strikes for a throwing rule.
   it('skips a throwing badge, keeps the rest, and warns once', () => {
     const broken: FieldBadgeDef = {
       id: 'broken',
@@ -260,8 +244,6 @@ describe('schemaToGraph', () => {
     const graph = schemaToGraph(schema, {fieldBadges: [uppercase]})
     const title = graph.nodes.find((n) => n.id === 'post')?.fields[0]
 
-    // The built-in `read-only` badge is gone: the option replaces the registry
-    // rather than merging with it, like every other extension point.
     expect(title?.options).toEqual([{id: 'json-type', label: 'string', tone: 'primary'}])
   })
 })

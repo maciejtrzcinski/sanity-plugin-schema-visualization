@@ -21,7 +21,6 @@ function props(overrides: Partial<DetailPanelProps> = {}): DetailPanelProps {
   }
 }
 
-/** The `Stack` following a heading — the section's list of rows. */
 function sectionAfter(heading: string): HTMLElement {
   const label = screen.getByText(heading)
   const section = label.closest('[data-ui="Stack"]')
@@ -34,7 +33,6 @@ describe('DetailPanel', () => {
     renderWithProviders(<DetailPanel {...props()} />)
 
     expect(screen.getByText('Blog post')).toBeDefined()
-    // Shown separately only because the title differs from the type name.
     expect(screen.getByText('post')).toBeDefined()
     expect(screen.getByText('document')).toBeDefined()
   })
@@ -62,11 +60,8 @@ describe('DetailPanel', () => {
     renderWithProviders(<DetailPanel {...props()} />)
 
     const outgoing = sectionAfter('Outgoing connections (2)')
-    // `referenceKind.badgeLabel` calls out the weak reference; `reusesKind` has
-    // no override, so its badge is the kind id.
     expect(within(outgoing).getByText('weak ref')).toBeDefined()
     expect(within(outgoing).getByText('reuses')).toBeDefined()
-    // `authorEdge` has no `fieldPath`, so the row names the field instead.
     expect(outgoing.textContent).toContain('via field "author"')
     expect(outgoing.textContent).toContain('via seo')
   })
@@ -75,7 +70,6 @@ describe('DetailPanel', () => {
     const edges = [{...authorEdge, kind: 'cross-dataset'}]
     renderWithProviders(<DetailPanel {...props({edges})} />)
 
-    // No `badgeLabel` on the catch-all, so the badge is the edge's own kind id.
     expect(screen.getByText('cross-dataset')).toBeDefined()
   })
 
@@ -124,9 +118,6 @@ describe('DetailPanel', () => {
 
     rerender(<DetailPanel {...props({issues: [{...issue, severity: 'info'}]})} />)
 
-    // Same message, lower severity — an advisory note must not reach the panel
-    // wearing a warning's tone. `severityTone` decides which; this pins that
-    // the panel actually asks it.
     expect(cardTone()).not.toBe('caution')
   })
 
@@ -170,8 +161,6 @@ describe('DetailPanel', () => {
 
       const link = createLink()
       expect(link).not.toBeNull()
-      // A real href, so the row behaves like a link rather than a button that
-      // navigates — and it names the type, not a structure path.
       expect(link?.getAttribute('href')).toBe('/intent/create/type=post/')
 
       await userEvent.click(link!)
@@ -189,9 +178,6 @@ describe('DetailPanel', () => {
       expect(createLink()?.getAttribute('href')).toContain('template=post-by-author')
     })
 
-    // Which types get one — kinds, system types, singletons, permissions — is
-    // `createDocumentTarget` and `useCreateDocumentTarget`; the panel only
-    // renders what it's handed.
     it('offers nothing when it isn’t handed a target', () => {
       renderWithProviders(<DetailPanel {...props()} />)
 
@@ -221,7 +207,6 @@ describe('DetailPanel', () => {
   })
 
   it('renders both option badges when a field carries two with the same label', () => {
-    // Same collision as on the card, keyed by the collected id — see `TypeNode`.
     const node = makeNode({
       id: 'post',
       fields: [

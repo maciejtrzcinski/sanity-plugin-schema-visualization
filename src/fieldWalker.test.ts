@@ -23,18 +23,13 @@ import type {TranslateFn} from './i18n'
 
 type TypeDef = ReturnType<typeof defineType>
 
-/**
- * The walker reads *compiled* types — aliases resolved, `to` entries turned
- * into schema types, intrinsics spliced into the chain — so every fixture
- * goes through `createSchema` rather than being hand-built.
- */
+/** The walker reads compiled types, so fixtures go through `createSchema`. */
 function registeredType(types: TypeDef[], name: string): SchemaType {
   const compiled = createSchema({name: 'test', types}).get(name)
   if (!compiled) throw new Error(`Expected "${name}" to compile`)
   return compiled
 }
 
-/** The compiled type of one field — what `describeField` hands the walker. */
 function fieldType(types: TypeDef[], typeName: string, fieldName: string): SchemaType {
   const owner = registeredType(types, typeName)
   if (!isObjectSchemaType(owner)) throw new Error(`Expected "${typeName}" to be an object type`)
@@ -44,7 +39,6 @@ function fieldType(types: TypeDef[], typeName: string, fieldName: string): Schem
 }
 
 interface WalkOptions {
-  /** Names `isRegistered` answers true for. */
   registered?: string[]
   maxDepth?: number
   selfName?: string
@@ -68,7 +62,6 @@ function walk(type: SchemaType, options: WalkOptions = {}): DescribeResult {
   )
 }
 
-/** A recurse that proves a describer is terminal: calling it fails the test. */
 const noRecurse: Recurse = () => {
   throw new Error('Expected this describer not to descend')
 }
@@ -89,7 +82,6 @@ function post(...fields: ReturnType<typeof defineField>[]): TypeDef {
   return defineType({name: 'post', type: 'document', fields})
 }
 
-/** Paths are the readable half of a link; most assertions only need these. */
 function paths(result: DescribeResult): string[] {
   return result.links.map((link) => link.path)
 }
@@ -103,7 +95,6 @@ describe('rootWalkContext', () => {
     expect(ctx.maxDepth).toBe(DEFAULT_MAX_DEPTH)
     expect(ctx.seen.size).toBe(0)
     expect(ctx.selfName).toBeUndefined()
-    // Defaults to the English bundle, so a headless walk still reads properly.
     expect(ctx.t('field.weak-ref')).toBe('weak ref')
   })
 
@@ -205,8 +196,6 @@ describe('walkFieldType', () => {
 
     expect(paths(walk(body, {registered: ['author'], maxDepth: 2}))).toEqual(['field[].author'])
     expect(paths(walk(body, {registered: ['author'], maxDepth: 1}))).toEqual([])
-    // The label is the walker's own, so cutting the descent short still names
-    // the shape as far as it got.
     expect(walk(body, {registered: ['author'], maxDepth: 1}).typeLabel).toBe('array of object')
   })
 
@@ -279,8 +268,6 @@ describe('walkFieldType', () => {
   })
 
   it('stops at a type already on the descent path', () => {
-    // A self-nesting type: without the `seen` guard this recurses until the
-    // depth budget runs out, repeating `owner` at every level.
     const node = defineType({
       name: 'node',
       type: 'object',
@@ -298,9 +285,7 @@ describe('walkFieldType', () => {
       registered: ['author'],
     })
 
-    // Compiling an alias makes one fresh type object per level, so the guard
-    // bites on the second `child` rather than the first — bounded either way,
-    // and far short of the depth budget it would otherwise run to.
+    // One fresh type object per alias level, so the guard bites on the second `child`.
     expect(paths(result)).toEqual(['field.child.owner', 'field.owner'])
   })
 
@@ -383,8 +368,6 @@ describe('walkFieldType', () => {
       'author',
     )
 
-    // Only the words are translated — the type names interpolated into them
-    // come from the schema, so a `t` that ignores its values loses them.
     expect(walk(ref, {registered: ['author'], t}).typeLabel).toBe('FIELD.REFERENCE-LABEL')
   })
 })
@@ -402,13 +385,6 @@ describe('defaultFieldDescribers', () => {
     ])
   })
 
-  /**
-   * `walkFieldType` only ever calls `describe` on a describer whose own `match`
-   * returned true, so what matters about a non-match is that the type falls
-   * through to the next describer — not what the declining one would have
-   * returned. `isRegistered` answers true for everything here, which is the
-   * permissive end: `namedTypeDescriber` has to decline on anonymity alone.
-   */
   it('leaves a primitive to the catch-all, whatever the registry says', () => {
     const ctx = rootWalkContext('title', () => true)
     const title = fieldType([post(defineField({name: 'title', type: 'string'}))], 'post', 'title')
@@ -503,8 +479,6 @@ describe('crossDatasetReferenceDescriber', () => {
     expect(crossDatasetReferenceDescriber.match(cross, ctx)).toBe(true)
     expect(crossDatasetReferenceDescriber.describe(cross, ctx, noRecurse)).toEqual({
       typeLabel: 'cross-dataset reference → author',
-      // A distinct edge kind: the target is in another dataset, so this must
-      // not read as a local reference even when a type of that name is here.
       links: [
         {
           kind: 'external-reference',
@@ -521,8 +495,6 @@ describe('crossDatasetReferenceDescriber', () => {
   })
 
   it('matches a registered type declared as a cross-dataset reference', () => {
-    // The alias compiles to a chain ending at the intrinsic; `isAliasOf` walks
-    // it, which is what keeps `namedTypeDescriber` from claiming it first.
     const alias = defineType({
       name: 'sharedAuthorRef',
       type: 'crossDatasetReference',
@@ -598,8 +570,6 @@ describe('namedTypeDescriber', () => {
       ),
     ).toBe(false)
 
-    // `object`/`image`/… are registered names too, so an inline type would be
-    // claimed as a reuse of the intrinsic it compiles to without this guard.
     const meta = fieldType(
       [
         post(
@@ -666,7 +636,6 @@ describe('arrayDescriber', () => {
         rootWalkContext('tags', () => false),
       ),
     ).toBe(true)
-    // Every member contributes to the label; only the registered one is a link.
     expect(walk(tags, {registered: ['seo'], fieldName: 'tags'})).toEqual({
       typeLabel: 'array of seo, image',
       links: [{kind: 'reuses', target: 'seo', path: 'tags[]'}],
@@ -675,8 +644,6 @@ describe('arrayDescriber', () => {
   })
 
   it('descends into a registered array type’s own members when it owns the walk', () => {
-    // Without `selfName`, `namedTypeDescriber` would claim `tags` as a reuse
-    // of itself and the array would never reach its members.
     const tagsType = registeredType(
       [seo, defineType({name: 'tags', type: 'array', of: [{type: 'seo'}]})],
       'tags',
@@ -766,7 +733,6 @@ describe('objectDescriber', () => {
       'cover',
     )
 
-    // `asset` would otherwise report a reference to `sanity.imageAsset`.
     expect(walk(cover, {registered: ['author'], fieldName: 'cover'})).toEqual({
       typeLabel: 'image',
       links: [

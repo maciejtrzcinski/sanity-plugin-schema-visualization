@@ -31,8 +31,7 @@ export const event = defineType({
       validation: (Rule) => Rule.min(Rule.valueOfField('startsAt')),
     }),
     defineField({
-      // Health demo: required but hidden, so no editor can fill it in and
-      // every event fails validation.
+      // Health demo: required but hidden, so every event fails validation.
       name: 'timezone',
       title: 'Timezone',
       type: 'string',

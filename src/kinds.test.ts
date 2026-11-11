@@ -11,7 +11,6 @@ import {
   otherKind,
   type NodeKindDef,
 } from './kinds'
-/** A real compiled type — the stub kinds below ignore it, they just need one. */
 const postType = createSchema({
   name: 'test',
   types: [
@@ -34,8 +33,6 @@ describe('catchAllKind', () => {
     expect(catchAllKind([documentKind, unflagged])).toBe(unflagged)
   })
 
-  // `resolveConfig` doesn't stop a consumer handing over an empty list, and
-  // every `?? catchAll` site would then have nothing to render.
   it('falls back to the built-in catch-all for an empty registry', () => {
     expect(catchAllKind([])).toBe(otherKind)
   })

@@ -20,7 +20,6 @@ function estimate(types: SchemaTypeDefinition[], roots: string[]) {
   return estimateAttributePaths(rootTypes, (name) => registered.has(name))
 }
 
-/** The five every document carries: `_id`, `_type`, `_rev`, `_createdAt`, `_updatedAt`. */
 const SYSTEM = 5
 
 describe('estimateAttributePaths', () => {

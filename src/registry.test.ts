@@ -27,14 +27,10 @@ describe('indexById', () => {
     expect(map.get('second')).toBe(second)
   })
 
-  // What a stale URL or a describer emitting an unregistered kind hits: the
-  // lookup misses, and the caller's `?? catchAll` decides what happens next.
   it('misses on an id no def covers', () => {
     expect(indexById([first]).get('nope')).toBeUndefined()
   })
 
-  // The case `duplicateIds` warns about — worth pinning, since which of the
-  // two the UI reads is exactly what makes the mistake confusing.
   it('keeps the last of two entries sharing an id', () => {
     const shadow: Def = {id: 'first', label: 'Shadow'}
     expect(indexById([first, shadow]).get('first')).toBe(shadow)
@@ -73,9 +69,6 @@ describe('duplicates', () => {
   })
 })
 
-// The three helpers exist so an extender never has to know where in a default
-// registry a built-in sits — so every case below checks position, not just
-// membership.
 describe('insertBefore', () => {
   it('places the entries just ahead of the anchor, in the order given', () => {
     const a: Def = {id: 'a', label: 'A'}
@@ -95,8 +88,6 @@ describe('insertBefore', () => {
     expect(defs).toEqual([first, second])
   })
 
-  // Appending silently would put the entry behind the catch-all, where it can
-  // never match — the mistake the anchor exists to prevent.
   it('throws on an anchor no entry carries, naming the ids it does have', () => {
     expect(() => insertBefore([first, second], 'nope', fallback)).toThrow(
       'insertBefore: no entry with id `nope`. The registry has `first`, `second`.',
@@ -122,8 +113,6 @@ describe('without', () => {
     expect(without([first, second, fallback], 'fallback', 'first')).toEqual([second])
   })
 
-  // Dropping nothing is harmless in itself, but the id was written to remove
-  // something — a typo here should not read as success.
   it('throws when one of the ids matches nothing', () => {
     expect(() => without([first, second], 'first', 'nope')).toThrow(
       'without: no entry with id `nope`',

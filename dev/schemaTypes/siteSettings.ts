@@ -29,9 +29,6 @@ export const siteSettings = defineType({
       of: [{type: 'socialLink'}],
     }),
     defineField({
-      // The other half of the external-reference story: a pointer at a
-      // document in a different resource entirely, named
-      // `resourceType:resourceId` rather than by dataset.
       name: 'houseAuthor',
       title: 'House author',
       type: 'globalDocumentReference',

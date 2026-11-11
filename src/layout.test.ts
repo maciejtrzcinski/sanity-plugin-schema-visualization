@@ -71,8 +71,7 @@ function edge(source: string, target: string) {
 
 describe('estimateNodeHeight', () => {
   it('reserves the header and the leaf note, and no badge row, for a fieldless type', () => {
-    // header padding (24) + title row (32) + leaf note (40); no badge applies
-    // to a plain collapsed leaf, so the row isn't rendered and costs nothing.
+    // header padding (24) + title row (32) + leaf note (40); no badge row
     expect(estimateNodeHeight(nodeData('slug', 'other'))).toBe(96)
   })
 
@@ -143,9 +142,6 @@ describe('estimateNodeHeight', () => {
   })
 
   it('is the same height expanded or collapsed for a fieldless type', () => {
-    // A fieldless card has nothing to expand and no summary badge to show for
-    // it, so the badge row isn't rendered either way — and the estimate has to
-    // agree, or the card would jump by a row's margin for nothing.
     expect(estimateNodeHeight(nodeData('slug', 'other', 0, false))).toBe(
       estimateNodeHeight(nodeData('slug', 'other', 0, true)),
     )
@@ -159,14 +155,12 @@ describe('estimateNodeHeight', () => {
     )
 
     expect(overCap).toBeGreaterThan(atCap)
-    // Everything past the cap renders identically, so it must measure identically.
     expect(wayOverCap).toBe(overCap)
   })
 
   it('reserves no field rows when collapsed, however many fields there are', () => {
     const short = estimateNodeHeight(nodeData('post', 'document', 3, false))
     const long = estimateNodeHeight(nodeData('post', 'document', 200, false))
-    // Only the summary text's own width can differ, never a per-field row.
     expect(long - short).toBeLessThanOrEqual(24)
   })
 })
@@ -260,8 +254,6 @@ describe('layoutGraph', () => {
       'LR',
     )
     const [post, author] = result.nodes
-    // Positions are top-left corners, so the next rank has to start at least a
-    // full `NODE_WIDTH` further right or the cards would paint on top of each other.
     expect(author.position.x - post.position.x).toBeGreaterThanOrEqual(NODE_WIDTH)
   })
 
@@ -281,7 +273,6 @@ describe('reflowHeights', () => {
     return new Map(nodes.map((n) => [n.id, estimateNodeHeight(n.data)]))
   }
 
-  /** Two cards stacked in one column, plus one on its own in a second column. */
   function stack(expanded: string[] = []) {
     return [
       placed('top', 0, 0, expanded.includes('top')),
@@ -408,7 +399,6 @@ describe('reflowHeights', () => {
     it('re-flows from measured heights instead of the estimate when supplied', () => {
       const nodes = stack()
       const estimates = heightsOf(nodes)
-      // The rendered card came out 30px taller than the estimate promised.
       const measured = new Map([['top', estimates.get('top')! + 30]])
       const heightOf = (node: FlowNode) => measured.get(node.id) ?? estimateNodeHeight(node.data)
 

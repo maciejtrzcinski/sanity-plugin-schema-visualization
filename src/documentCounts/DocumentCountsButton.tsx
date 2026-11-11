@@ -6,19 +6,7 @@ import {useEffect, useState} from 'react'
 import {useTranslate} from '../hooks/useTranslate'
 import {formatRelativeTime, type DocumentCountsStatus} from './index'
 
-/**
- * The toolbar's "Load doc counts" control.
- *
- * Lives with the feature rather than in `Toolbar.tsx`, and reaches the toolbar
- * through its `extraActions` slot. The toolbar renders whatever it is handed
- * and imports nothing from here, so the whole feature — query, state, cache,
- * annotations and this button — is one directory that depends on core rather
- * than the other way round.
- *
- * Whether it appears at all is the tool root's call (`documentCounts: true`,
- * and at least one countable type): with nothing to count, `load` is a silent
- * no-op, and a button that does nothing is worse than no button.
- */
+/** Whether it appears at all is the tool root's call: with nothing to count, `load` is a no-op. */
 export function DocumentCountsButton({
   status,
   fetchedAt,
@@ -29,8 +17,6 @@ export function DocumentCountsButton({
   onClick: () => void
 }) {
   const t = useTranslate()
-  // `formatRelativeTime` is only minute-precise, so a minutely tick keeps the
-  // tooltip honest without meaningful re-render cost.
   const [, setNowTick] = useState(0)
   const showTooltip = status === 'loaded' && fetchedAt !== undefined
   useEffect(() => {

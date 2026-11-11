@@ -9,18 +9,9 @@ import {buildGraph} from '../schemaToGraph'
 import type {GraphNode, GraphNodeKind, SchemaGraph} from '../types'
 import {useTranslate} from './useTranslate'
 
-/** Headline counts for the toolbar's stats line. */
 export interface GraphStats {
-  /**
-   * How many types the author registered, per kind, in registry order — built
-   * from the kind registry rather than fixed `documents`/`objects`/`other`
-   * fields, so a custom kind gets its own count instead of disappearing into
-   * a bucket. Types naming a kind the registry no longer has are counted
-   * under the catch-all.
-   */
   byKind: Array<{kind: NodeKindDef; count: number}>
   edges: number
-  /** Sanity's built-in types, which `customNodes` never includes. */
   system: number
 }
 
@@ -29,31 +20,16 @@ export interface GraphModel {
   healthIssues: HealthIssue[]
   nodesById: Map<string, GraphNode>
   issuesByNodeId: Map<string, HealthIssue[]>
-  /** Everything a filter predicate needs beyond the node itself. */
   filterContext: FilterContext
   stats: GraphStats
 }
 
-/**
- * The graph for the compiled schema. Field labels and badges are built here,
- * so it is derived again when the Studio's locale changes — `t` is a stable
- * callback per locale, so nothing rebuilds while it stays put.
- */
 export function useSchemaGraph(schema: Schema): SchemaGraph {
-  // The resolved config is memoised on the options object's identity, so it
-  // is as stable a dependency as its individual fields would be.
   const config = useConfig()
   const t = useTranslate()
   return useMemo(() => buildGraph(schema, config, t), [schema, config, t])
 }
 
-/**
- * Everything the toolbar, canvas and panels read off the graph, computed once
- * — so the canvas and the health rules can't disagree about what counts as an
- * orphan. Takes the live document counts because some health rules judge
- * them; with none loaded the map is simply empty. Takes the schema the graph
- * was built from for the rules that read what the graph leaves out.
- */
 export function useGraphModel(
   graph: SchemaGraph,
   docCountByType: ReadonlyMap<string, number>,
@@ -89,9 +65,7 @@ export function useGraphModel(
       if (warnings > 0) warningCountByNodeId.set(nodeId, warnings)
     }
 
-    // Connectivity is judged against the whole schema, not just what's
-    // currently visible — otherwise toggling an unrelated filter could flip a
-    // node in and out of "orphan" for reasons unrelated to its own edges.
+    // Judged against the whole schema, so an unrelated filter can't flip a node's "orphan" status.
     const connectedNodeIds = new Set<string>()
     for (const edge of graph.edges) {
       connectedNodeIds.add(edge.source)

@@ -40,7 +40,6 @@ describe('documentCountAnnotations', () => {
       new Map([['post', 0]]),
     )
 
-    // Zero is a real count and gets annotated; `author` is simply unknown.
     expect(annotations.get('post')).toEqual({docCount: 0})
     expect(annotations.has('author')).toBe(false)
   })

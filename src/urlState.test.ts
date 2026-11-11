@@ -77,8 +77,6 @@ describe('decodeViewState', () => {
   })
 
   it('round-trips filter values containing commas or percent signs', () => {
-    // A custom filter is free to use any string as a value — a comma must not
-    // split one token into two on the way back in.
     const custom = [
       {
         id: 'custom',
@@ -129,7 +127,6 @@ describe('decodeViewState', () => {
   })
 
   it('honours the supplied defaults for params the URL omits', () => {
-    // A stored preference the URL says nothing about must survive decoding.
     const stored = {...defaults, system: ['1']}
     expect(decodeViewState('?q=hero', defs, stored).filters.system).toEqual(['1'])
   })
@@ -200,8 +197,6 @@ describe('sameSearchParams', () => {
       ['system', '1'],
     ]
     expect(sameSearchParams(a, [...a])).toBe(true)
-    // A router that normalizes/reorders params must not read as a change,
-    // or the sync effect would navigate on every router update.
     expect(sameSearchParams(a, [a[1], a[0]])).toBe(true)
     expect(sameSearchParams(a, [a[0]])).toBe(false)
     expect(sameSearchParams(a, [a[0], ['system', '0']])).toBe(false)

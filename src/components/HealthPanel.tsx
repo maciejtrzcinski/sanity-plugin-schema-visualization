@@ -19,13 +19,9 @@ export interface HealthPanelProps {
 export function HealthPanel({issues, nodesById, onSelectNode, onClose}: HealthPanelProps) {
   const {healthRules} = useConfig()
   const t = useTranslate()
-  // Grouped in rule order, and labelled from the rule itself — no separate
-  // category-to-label map to keep in sync.
   const grouped = useMemo(() => groupIssuesByRule(issues, healthRules), [issues, healthRules])
 
   return (
-    // A flex column so the header stays put and only the list scrolls; the
-    // panel's container caps its height (see `SchemaVisualizationTool`).
     <Card
       shadow={3}
       radius={3}

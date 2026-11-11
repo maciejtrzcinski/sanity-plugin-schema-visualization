@@ -21,11 +21,7 @@ export interface NodeKindDef {
   singular: string
   /** Heading on the canvas cluster band. */
   clusterLabel: string
-  /**
-   * Resource keys for the three labels above, resolved against the Studio's
-   * locale — see `localized`. Each is optional: a kind without one
-   * shows the English string written beside it.
-   */
+  /** Resource keys for the labels above — see `localized`. */
   i18n?: {label?: string; singular?: string; clusterLabel?: string}
   /** Short, stable token used in shareable URLs. Changing one breaks old links. */
   urlParam: string
@@ -36,16 +32,8 @@ export interface NodeKindDef {
   icon: ComponentType
   /** Decides whether a compiled schema type belongs to this kind. */
   classify: (type: SchemaType) => boolean
-  /**
-   * Badge text for a node of this kind. Defaults to the kind id, which reads
-   * well for `document`/`object`; the catch-all kind overrides it to name the
-   * concrete type instead ("array", "string") since "other" says nothing.
-   */
+  /** Badge text for a node of this kind. Defaults to the kind id. */
   baseTypeOf?: (type: SchemaType) => string
-
-  // Capability flags. Behaviour is declared per kind rather than keyed off the
-  // built-in ids, so a consumer who replaces `kinds` keeps it on their own
-  // categories.
 
   /** Live document counts are fetched for these types and badged on their cards. */
   countsDocuments?: boolean
@@ -53,19 +41,9 @@ export interface NodeKindDef {
   reportsOrphans?: boolean
   /** A `reference` field is expected to point at a type of this kind. */
   isReferenceTarget?: boolean
-  /**
-   * The detail panel offers a link into the rest of the Studio for types of
-   * this kind — Sanity's `create` intent, which opens the type's list in
-   * Structure with a new document. Only meaningful for kinds whose types
-   * really are documents; an object type has nothing to create. Even then the
-   * link appears only where the Studio's own create menu offers the type and
-   * the user may create one.
-   */
+  /** The detail panel offers a "New <type>" link, where the Studio's own create menu does too. */
   createsDocuments?: boolean
-  /**
-   * Last resort. `classify` must match everything, and any kind id that isn't
-   * in the registry resolves here, so the node still renders.
-   */
+  /** Last resort: `classify` must match everything, and unknown kind ids resolve here. */
   isCatchAll?: boolean
 }
 
@@ -134,29 +112,18 @@ export const otherKind: NodeKindDef = {
 }
 
 /**
- * Order is significant twice over: `classifyKind` takes the first match, so
- * the catch-all must come last; and it's the order kinds appear in filter
- * menus and cluster bands.
+ * First match wins, so the catch-all goes last. Also the order of filter menus
+ * and cluster bands.
  *
  * @public
  */
 export const defaultNodeKinds: readonly NodeKindDef[] = [documentKind, objectKind, otherKind]
 
-/**
- * Where an unrecognised kind resolves: the registry's `isCatchAll` kind, or
- * its last entry (which is where the catch-all belongs) if none is flagged.
- * A node can outlive the kind that classified it — a stale URL, a cached
- * preference, a config change between sessions — and rendering it as the
- * catch-all beats crashing the canvas.
- */
+/** The `isCatchAll` kind, or the last entry. A node can outlive its kind (a stale URL). */
 export function catchAllKind(kinds: readonly NodeKindDef[] = defaultNodeKinds): NodeKindDef {
   return catchAllOf(kinds, otherKind)
 }
 
-/**
- * Ids of every kind that opts into one capability, as a set — the membership
- * test the per-node code paths do, hoisted out of the render loop.
- */
 export function kindIdsWith(
   kinds: readonly NodeKindDef[],
   flag: 'countsDocuments' | 'reportsOrphans' | 'isReferenceTarget' | 'createsDocuments',
@@ -164,9 +131,6 @@ export function kindIdsWith(
   return new Set(kinds.filter((kind) => kind[flag]).map((kind) => kind.id))
 }
 
-/**
- * First kind whose `classify` claims the type; falls back to the catch-all.
- */
 export function classifyKind(
   type: SchemaType,
   kinds: readonly NodeKindDef[] = defaultNodeKinds,
@@ -174,7 +138,6 @@ export function classifyKind(
   return kinds.find((k) => k.classify(type)) ?? catchAllKind(kinds)
 }
 
-/** Badge text for a node of this kind — see `NodeKindDef.baseTypeOf`. */
 export function baseTypeFor(type: SchemaType, kind: NodeKindDef): string {
   return kind.baseTypeOf ? kind.baseTypeOf(type) : kind.id
 }

@@ -62,7 +62,6 @@ describe('defaultNodeBadges', () => {
   it('badges system and deprecated types in registry order', () => {
     const badges = collectNodeBadges(node({isSystem: true, deprecated: 'use `article`'}), ctx())
     expect(labels(badges)).toEqual(['system', 'deprecated'])
-    // The card has no room for the reason, so it hangs off a tooltip.
     expect(badges[1].tooltip).toBe('use `article`')
   })
 
@@ -109,9 +108,6 @@ describe('docCountBadge', () => {
     )
   })
 
-  // `NodeAnnotations` names no keys, so `docCount` is `unknown` to every
-  // reader — a stale cache or another annotation source can put anything
-  // under it, and the badge has to stay away rather than render "NaN docs".
   it('ignores a docCount that is not a number', () => {
     expect(docCountBadge.badge(node(), ctx({annotations: {docCount: '7'}}))).toBeUndefined()
     expect(docCountBadge.badge(node(), ctx({annotations: {docCount: null}}))).toBeUndefined()

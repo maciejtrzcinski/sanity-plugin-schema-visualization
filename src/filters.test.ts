@@ -49,7 +49,6 @@ function graphEdge(source: string, target: string): GraphEdge {
   return {id: `${source}->${target}`, source, target, kind: 'reference', fieldName: target}
 }
 
-/** Defaults, but permissive about system types, so each test varies one thing. */
 const base: FilterValues = {...defaultFilterValues(defs), system: ['1']}
 
 describe('nodeMatchesFilters', () => {
@@ -85,8 +84,6 @@ describe('nodeMatchesFilters', () => {
 
   it('separates info-only issues from warnings', () => {
     const node = graphNode({id: 'post'})
-    // One issue, raised at `info` — an issue for "Only with issues" and for
-    // "Only clean", but not something "Only with warnings" should surface.
     const infoOnly = ctx({issueCountByNodeId: new Map([['post', 1]])})
     expect(nodeMatchesFilters(node, {...base, health: ['issues']}, defs, infoOnly)).toBe(true)
     expect(nodeMatchesFilters(node, {...base, health: ['clean']}, defs, infoOnly)).toBe(false)
@@ -148,7 +145,6 @@ describe('nodeMatchesFilters', () => {
 
   it('applies every filter, not just the first that matches', () => {
     const node = graphNode({id: 'slug', kind: 'document', isSystem: true})
-    // Kind passes, system does not.
     expect(
       nodeMatchesFilters(node, {...base, kinds: ['document'], system: ['0']}, defs, ctx()),
     ).toBe(false)
@@ -156,15 +152,12 @@ describe('nodeMatchesFilters', () => {
 
   it('falls back to a filter default when its value is missing entirely', () => {
     const node = graphNode({id: 'slug', isSystem: true})
-    // No `system` key at all — the default ('0', exclude) must still apply.
     expect(nodeMatchesFilters(node, {}, defs, ctx())).toBe(false)
   })
 
   it('hands a custom predicate the whole graph and the loaded doc counts', () => {
     const post = graphNode({id: 'post', kind: 'document'})
     const author = graphNode({id: 'author', kind: 'document'})
-    // The "types with zero documents that nothing points at" filter the wider
-    // context is meant to make writable outside this package.
     const unusedFilter: FilterDef = {
       id: 'unused',
       label: 'Unused',
@@ -190,9 +183,7 @@ describe('nodeMatchesFilters', () => {
     })
 
     expect(nodeMatchesFilters(author, only, custom, withCounts)).toBe(true)
-    // Empty, but `author` references it.
     expect(nodeMatchesFilters(post, only, custom, withCounts)).toBe(false)
-    // Counts nobody loaded read as unknown, not as zero.
     expect(nodeMatchesFilters(author, only, custom, ctx())).toBe(false)
   })
 })

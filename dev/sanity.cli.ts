@@ -11,14 +11,13 @@ export default defineCliConfig({
     ...config,
     optimizeDeps: {
       ...config.optimizeDeps,
-      // @sanity/sdk-react ships raw JSX in .js files, which rolldown-vite's
-      // dep optimizer refuses to parse by default.
+      // @sanity/sdk-react ships raw JSX in .js files, which the dep optimizer won't parse.
       rolldownOptions: {
         ...config.optimizeDeps?.rolldownOptions,
         moduleTypes: {'.js': 'jsx'},
       },
     },
-    // The same for `sanity build`, which bundles without the dep optimizer.
+    // Same for `sanity build`, which skips the dep optimizer.
     build: {
       ...config.build,
       rolldownOptions: {

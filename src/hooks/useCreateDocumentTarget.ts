@@ -6,17 +6,7 @@ import {useConfig} from '../config'
 import {createDocumentTarget, type CreateDocumentTarget} from '../createDocument'
 import type {GraphNode} from '../types'
 
-/**
- * Where the detail panel's "New <type>" link leads, once the Studio agrees the
- * current user may create one — `undefined` while that is being checked, and
- * whenever the answer is no.
- *
- * Two Studio checks, both of which the Studio's own create menu makes: the
- * type must be among its global new-document options (see
- * `createDocumentTarget`), and the user's grants must allow `create` on it.
- * Either failing hides the link; the Studio still enforces permissions on
- * save, so this only decides what's offered.
- */
+/** `undefined` while checking, and whenever the user may not create the type. */
 export function useCreateDocumentTarget(node: GraphNode | null): CreateDocumentTarget | undefined {
   const workspace = useWorkspace()
   const grants = useGrantsStore()
@@ -28,8 +18,6 @@ export function useCreateDocumentTarget(node: GraphNode | null): CreateDocumentT
       const options = workspace.document.resolveNewDocumentOptions({type: 'global'})
       return createDocumentTarget(node, kindById.get(node.kind) ?? catchAll, options)
     } catch (err) {
-      // A Studio's own `newDocumentOptions` threw — offer nothing rather than
-      // guess what it meant to allow.
       warnOnce(
         'create-document:new-document-options',
         `Could not resolve the Studio's new-document options, so the detail panel offers no "New" link: ${String(err)}`,

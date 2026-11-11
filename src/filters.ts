@@ -13,45 +13,21 @@ import type {GraphNode, SchemaGraph} from './types'
  * @public
  */
 export interface FilterContext {
-  /**
-   * The whole schema, unfiltered — for a predicate that has to look past the
-   * node it was handed, e.g. at its neighbors or at the edges pointing in.
-   * Deliberately not the currently visible subgraph: a filter that judged a
-   * node by what other filters had already hidden would make the result depend
-   * on the order predicates happen to run in.
-   */
+  /** The whole schema, unfiltered — not the visible subgraph, so filter order can't matter. */
   graph: SchemaGraph
   /** Health issues per node, of any severity. A node with none is absent. */
   issueCountByNodeId: Map<string, number>
-  /**
-   * The `warning`-severity share of
-   * {@link FilterContext.issueCountByNodeId} — subtract one from the other for
-   * the `info` count. Split so a predicate can tell an advisory note from a
-   * real problem; the health filter's "Only with warnings" is the built-in
-   * that does.
-   */
+  /** The `warning`-severity share of `issueCountByNodeId`. */
   warningCountByNodeId: Map<string, number>
   connectedNodeIds: Set<string>
-  /**
-   * Live document counts, keyed by type name (not node id). Empty until
-   * someone presses the toolbar's "Load doc counts" — and always empty when
-   * `documentCounts` is off — so a predicate reading this must treat a missing
-   * entry as "not known yet" rather than as zero documents.
-   */
+  /** Document counts by type name. Empty until loaded: missing means unknown, not zero. */
   docCountByType: ReadonlyMap<string, number>
-  /**
-   * Translates against this plugin's namespace, for a filter's `summary` — the
-   * one string a filter computes rather than declares. Falls back to the
-   * English bundle outside a Studio, so `nodeMatchesFilters` stays callable
-   * with a hand-built context.
-   */
+  /** Translates against this plugin's namespace, for `summary`. */
   t: TranslateFn
 }
 
 /**
- * A filter's current selection. Every filter stores a list of selected values,
- * so state, URLs and stored preferences stay uniform; `value` is the
- * convenience accessor a single-choice predicate wants.
+ * A filter's current selection. `value` is the first selected value.
  *
  * @public
  */
@@ -67,11 +43,7 @@ export interface FilterOption {
   label: string
   /** Resource key for `label`, resolved against the Studio's locale — see `localized`. */
   i18n?: {label?: string}
-  /**
-   * Short, stable token for this option in a URL. Defaults to `value`; the
-   * kind filter overrides it (`document` becomes `doc`) to keep shared links
-   * compact.
-   */
+  /** Short token for this option in a URL. Defaults to `value`. */
   urlValue?: string
 }
 
@@ -83,10 +55,7 @@ export interface FilterDef {
   /** Resource key for `label`, resolved against the Studio's locale — see `localized`. */
   i18n?: {label?: string}
   icon?: ComponentType
-  /**
-   * `single` renders as a radio group and stores one value; `multi` renders as
-   * checkboxes and stores a list.
-   */
+  /** `single` is a radio group; `multi` is checkboxes. */
   type: 'single' | 'multi'
   options: readonly FilterOption[]
   /** Selection when nothing else says otherwise. Defaults to every option, for `multi`. */
@@ -94,14 +63,7 @@ export interface FilterDef {
   /** URL search param. Changing one invalidates existing shared links. */
   urlParam: string
   predicate: (node: GraphNode, selected: FilterValue, ctx: FilterContext) => boolean
-  /**
-   * A short note for the toolbar's stats line — "system types hidden",
-   * "unused only" — describing what this filter is currently doing to the
-   * graph, or `undefined` when its selection needs no comment (nothing to hide,
-   * or the default selection). Gets the same context as `predicate`, so it can
-   * check the unfiltered graph — including its `t`. Keeps the toolbar from
-   * naming any filter to word that line.
-   */
+  /** A note for the toolbar's stats line, or `undefined` when the selection needs none. */
   summary?: (selected: FilterValue, ctx: FilterContext) => string | undefined
 }
 
@@ -115,8 +77,7 @@ export type FilterValues = Readonly<Record<string, readonly string[]>>
 const KINDS_FILTER_ID = 'kinds'
 
 /**
- * Which kinds of type to show. Built from the kind registry rather than a
- * hardcoded list, so registering a kind adds its toggle here automatically.
+ * Which kinds of type to show, built from the kind registry.
  *
  * @public
  */
@@ -124,8 +85,6 @@ export function createKindsFilter(kinds: readonly NodeKindDef[] = defaultNodeKin
   const options = kinds.map((kind) => ({
     value: kind.id,
     label: kind.label,
-    // The toggle is the kind's own label, so it translates with the kind
-    // rather than through a second copy of the same string here.
     ...(kind.i18n?.label ? {i18n: {label: kind.i18n.label}} : {}),
     urlValue: kind.urlParam,
   }))
@@ -142,8 +101,7 @@ export function createKindsFilter(kinds: readonly NodeKindDef[] = defaultNodeKin
 }
 
 /**
- * Sanity's built-in types ride along on every compiled schema, so they're
- * hidden unless asked for. Values are `'1'`/`'0'` to keep the URL short.
+ * Values are `'1'`/`'0'` to keep the URL short.
  *
  * @beta
  */
@@ -180,10 +138,6 @@ export const healthFilter: FilterDef = {
   ],
   defaultValues: ['all'],
   urlParam: 'health',
-  // An `info` issue still counts as an issue here — a rule raised it against
-  // this type, so calling the type clean would hide it from the one filter
-  // meant to surface it. "Only with warnings" is what narrows to the issues
-  // worth acting on.
   predicate: (node, selected, ctx) => {
     if (selected.value === 'warnings') return (ctx.warningCountByNodeId.get(node.id) ?? 0) > 0
     const count = ctx.issueCountByNodeId.get(node.id) ?? 0
@@ -267,7 +221,6 @@ export function defaultFilterValues(defs: readonly FilterDef[]): FilterValues {
   return Object.fromEntries(defs.map((def) => [def.id, def.defaultValues]))
 }
 
-/** Reads one filter's selection, falling back to its default when unset. */
 export function selectionFor(values: FilterValues, def: FilterDef): FilterValue {
   const selected = values[def.id] ?? def.defaultValues
   return {value: selected[0] ?? '', values: new Set(selected)}
@@ -281,15 +234,10 @@ export function isAtDefault(values: FilterValues, def: FilterDef): boolean {
   )
 }
 
-/** How many filters are set to something other than their default. */
 export function activeFilterCount(values: FilterValues, defs: readonly FilterDef[]): number {
   return defs.filter((def) => !isAtDefault(values, def)).length
 }
 
-/**
- * Central node-visibility predicate. Shared between the canvas's own filtering
- * and the toolbar's focus-orphaning check so the two can't drift apart.
- */
 export function nodeMatchesFilters(
   node: GraphNode,
   values: FilterValues,
@@ -299,7 +247,6 @@ export function nodeMatchesFilters(
   return defs.every((def) => def.predicate(node, selectionFor(values, def), ctx))
 }
 
-/** Discards values a filter no longer offers — a stale URL or stored preference. */
 export function sanitizeFilterValues(
   raw: Readonly<Record<string, readonly string[] | undefined>>,
   defs: readonly FilterDef[],
@@ -308,14 +255,11 @@ export function sanitizeFilterValues(
   for (const def of defs) {
     const allowed = new Set(def.options.map((o) => o.value))
     const kept = (raw[def.id] ?? []).filter((v) => allowed.has(v))
-    // An empty multi-select hides everything, which reads as a broken canvas
-    // rather than a filter; an empty single-select has nothing to test against.
     result[def.id] = kept.length > 0 ? kept : def.defaultValues
   }
   return result
 }
 
-/** Toggles one value of a `multi` filter, keeping at least one selected. */
 export function toggleFilterValue(
   values: FilterValues,
   def: FilterDef,
@@ -323,9 +267,7 @@ export function toggleFilterValue(
 ): FilterValues {
   const current = values[def.id] ?? def.defaultValues
   const next = current.includes(value) ? current.filter((v) => v !== value) : [...current, value]
-  // An empty multi-select matches nothing, which reads as a broken canvas rather
-  // than a filter — and `sanitizeFilterValues` would restore every value on the
-  // next reload, so live state and its own shareable link would disagree.
+  // Keep one selected: an empty multi-select matches nothing, and a reload would refill it.
   if (next.length === 0) return values
   return {...values, [def.id]: next}
 }
@@ -336,7 +278,6 @@ export function setFilterValue(values: FilterValues, def: FilterDef, value: stri
 
 const urlValueOf = (option: FilterOption) => option.urlValue ?? option.value
 
-/** Maps a filter's selected values to the short tokens used in a URL. */
 export function toUrlValues(def: FilterDef, values: readonly string[]): string[] {
   return values.map((value) => {
     const option = def.options.find((o) => o.value === value)
@@ -344,7 +285,6 @@ export function toUrlValues(def: FilterDef, values: readonly string[]): string[]
   })
 }
 
-/** Inverse of {@link toUrlValues}. Unknown tokens pass through for `sanitizeFilterValues` to drop. */
 export function fromUrlValues(def: FilterDef, raw: readonly string[]): string[] {
   return raw.map((token) => {
     const option = def.options.find((o) => urlValueOf(o) === token)

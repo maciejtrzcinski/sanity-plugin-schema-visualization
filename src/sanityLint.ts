@@ -3,12 +3,7 @@ import type {Schema} from 'sanity'
 import type {HealthContext, HealthRule, RawIssue} from './healthRules'
 import {getAuthoredTypes} from './intrinsics'
 
-/*
- * The shapes below restate the slice of `@sanity-labs/schema-lint` the adapter
- * touches, so the plugin works with whichever copy a Studio installs and adds
- * nothing to the bundle of a Studio that doesn't use it. `sanityLint.test.ts`
- * runs the package's real rules through them, which is what catches drift.
- */
+// Restates the slice of `@sanity-labs/schema-lint` used here, so it adds nothing to the bundle.
 
 /**
  * A type definition in the shape Sanity Lint's schema rules read.
@@ -64,16 +59,11 @@ export interface SanityLintRule {
   id: string
   name: string
   severity: 'error' | 'warning' | 'info'
-  // Method syntax on purpose: the package types its own context more narrowly
-  // than this one, and only a method parameter is compared bivariantly.
+  // Method syntax: only a method parameter is compared bivariantly.
   check(schema: SanityLintType, context: SanityLintRuleContext): void
 }
 
-/**
- * These judge source text. `defineType` and `defineField` return their
- * argument unchanged, so a running Studio can't tell whether they were called,
- * and both rules would flag every type.
- */
+/** These judge source text; at runtime `defineType` is invisible, so both flag every type. */
 const SOURCE_ONLY_RULES: ReadonlySet<string> = new Set([
   'missing-define-type',
   'missing-define-field',
@@ -92,7 +82,6 @@ function list<T>(value: unknown, convert: (item: unknown) => T | undefined): T[]
   return value.flatMap((item) => convert(item) ?? [])
 }
 
-/** `to` takes one target or a list of them. */
 function toTargets(value: unknown): Array<{type: string}> | undefined {
   const targets = list(Array.isArray(value) ? value : value === undefined ? [] : [value], (to) =>
     isRecord(to) && typeof to.type === 'string' ? {type: to.type} : undefined,
@@ -100,7 +89,6 @@ function toTargets(value: unknown): Array<{type: string}> | undefined {
   return targets && targets.length > 0 ? targets : undefined
 }
 
-/** A field, or an array member — which may leave out its name and go by its type. */
 function toLintField(def: unknown): SanityLintField | undefined {
   if (!isRecord(def)) return undefined
   const type = text(def.type)
@@ -113,8 +101,6 @@ function toLintField(def: unknown): SanityLintField | undefined {
     description: text(def.description),
     hasValidation: def.validation !== undefined,
     deprecated: isRecord(def.deprecated) ? (text(def.deprecated.reason) ?? true) : undefined,
-    // A `hidden` callback hides the field only sometimes, so it still needs
-    // what a visible field needs.
     hidden: def.hidden === true,
     readOnly: def.readOnly === true,
     options: isRecord(def.options) ? def.options : undefined,
@@ -144,14 +130,9 @@ function toLintType(def: unknown): SanityLintType | undefined {
   }
 }
 
-/** Every Sanity Lint rule in a config reads the same conversion, so it's done once per schema. */
 const converted = new WeakMap<Schema, readonly SanityLintType[]>()
 
-/**
- * The authored definitions, not the compiled types: compilation gives every
- * type and field a title and every field a validation entry, so neither
- * `missing-title` nor the validation rules would ever find anything.
- */
+/** Authored definitions: compilation titles every type, so `missing-title` would never fire. */
 function lintTypes({schema, nodesById}: HealthContext): SanityLintType[] {
   if (!schema) return []
   let types = converted.get(schema)
@@ -195,13 +176,8 @@ function toHealthRule(rule: SanityLintRule): HealthRule {
 
 /**
  * Health rules that run [Sanity Lint](https://github.com/sanity-labs/sanity-lint)'s
- * schema rules over the types as the author wrote them, so their findings land
- * in the health panel next to the built-ins: one group per rule, ids prefixed
- * `sanity-lint/`, errors shown as warnings. `missing-define-type` and
- * `missing-define-field` are left out — they need the source files.
- *
- * The rules read the schema, so outside a Studio they report only when
- * `computeHealthIssues` is given one.
+ * schema rules over the authored types. Outside a Studio they need
+ * `computeHealthIssues` to be given the schema.
  *
  * @beta
  */

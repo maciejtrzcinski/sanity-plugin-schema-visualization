@@ -42,8 +42,6 @@ describe('schemaToGraph', () => {
     expect(seo.kind).toBe('object')
     expect(seo.isSystem).toBe(false)
 
-    // Sanity's built-in intrinsics (image, slug, block, …) always ride along
-    // on a compiled schema — they should be present, but flagged as system.
     const image = findNode(graph.nodes, 'image')
     expect(image.isSystem).toBe(true)
   })
@@ -158,8 +156,6 @@ describe('schemaToGraph', () => {
       expect(field.options.map((o) => o.label)).toEqual(
         expect.arrayContaining(['weak ref', 'dataset: shared']),
       )
-      // A cross-dataset target is not a local reference, so it stays out of
-      // the field's `referencesTo` and off the health rules built on it.
       expect(field.referencesTo).toEqual([])
       expect(field.reusesTypes).toEqual([])
 
@@ -195,7 +191,6 @@ describe('schemaToGraph', () => {
       expect(findNode(graph.nodes, 'post').fields[0].typeLabel).toBe(
         'cross-dataset reference → author',
       )
-      // Nothing to point at, so the edge is dropped rather than left dangling.
       expect(graph.edges.filter((e) => e.source === 'post')).toEqual([])
     })
 
@@ -237,9 +232,6 @@ describe('schemaToGraph', () => {
       })
     })
 
-    // A registered alias compiles to a chain ending at the intrinsic, and
-    // `namedTypeDescriber` would otherwise claim it as a plain reuse of a type
-    // whose own card shows nothing but `_ref`/`_weak`.
     it('claims a registered type declared as a cross-dataset reference', () => {
       const schema = createSchema({
         name: 'test',
@@ -293,8 +285,6 @@ describe('schemaToGraph', () => {
       describe: () => ({typeLabel: 'slug (from title)', links: [], options: []}),
     }
 
-    // The example in docs/extending.md: pre-empt `namedTypeDescriber` without knowing that
-    // it is second in the default registry.
     it('lets a describer inserted ahead of a built-in claim the field', () => {
       const graph = schemaToGraph(schema, {
         fieldDescribers: insertBefore(defaultFieldDescribers, 'namedType', slugDescriber),
@@ -316,8 +306,6 @@ describe('schemaToGraph', () => {
     })
 
     const graph = schemaToGraph(schema)
-    // `image` is a built-in — using it should not be reported as "reusing" a
-    // custom type, even though `image` is technically in the type registry.
     expect(graph.edges.filter((e) => e.source === 'post')).toEqual([])
   })
 
@@ -475,9 +463,6 @@ describe('schemaToGraph', () => {
       expect(graph.edges.some((e) => e.source === 'post' && e.target === 'author')).toBe(true)
     })
 
-    // The tool builds its graph from the resolved plugin config rather than
-    // re-resolving the options, so a plugin-level `maxDepth` has to reach it
-    // by that route.
     it('is read from the resolved plugin config by `buildGraph`', () => {
       const graph = buildGraph(schema, resolveConfig({maxDepth: 0}))
       expect(graph.edges.filter((e) => e.source === 'post' && e.target === 'author')).toEqual([])
@@ -604,8 +589,6 @@ describe('schemaToGraph', () => {
 
       const graph = schemaToGraph(schema)
 
-      // The annotation lives inside `blockContent`, so that's where the
-      // reference belongs — `post` connects to it by reusing the type.
       expect(
         graph.edges.find((e) => e.source === 'post' && e.target === 'blockContent'),
       ).toMatchObject({kind: 'reuses', fieldName: 'body'})
@@ -640,7 +623,6 @@ describe('schemaToGraph', () => {
 
       expect(graph.edges.find((e) => e.source === 'post' && e.target === 'seo')).toBeDefined()
       expect(graph.edges.find((e) => e.source === 'seo' && e.target === 'author')).toBeDefined()
-      // `post` reuses `seo`; it does not itself reference `author`.
       expect(graph.edges.find((e) => e.source === 'post' && e.target === 'author')).toBeUndefined()
     })
     it('omits fieldPath when the connection is at the top level of the field', () => {

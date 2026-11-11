@@ -84,10 +84,8 @@ describe('readValidation', () => {
     expect(warn).not.toHaveBeenCalled()
   })
 
-  // A compiled Rule always carries `_rules`; finding none means Sanity moved it.
   it('reports once when the Rule shape moved', () => {
     const type = fieldType(defineField({name: 'title', type: 'string'}))
-    // A Rule instance that no longer carries `_rules` under that name.
     Reflect.set(type, 'validation', [{someNewShape: []}])
 
     expect(readValidation(type)).toEqual({required: false, constraints: []})

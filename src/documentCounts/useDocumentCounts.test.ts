@@ -4,7 +4,6 @@ import {beforeEach, describe, expect, it, vi} from 'vitest'
 
 import {useDocumentCounts} from './useDocumentCounts'
 
-/** One fetch per perspective, so a test can answer the two queries separately. */
 const fetchIn = {current: vi.fn(), raw: vi.fn()}
 const withConfig = vi.fn(({perspective}: {perspective: unknown}) => ({
   fetch: perspective === 'raw' ? fetchIn.raw : fetchIn.current,
@@ -13,16 +12,12 @@ const withConfig = vi.fn(({perspective}: {perspective: unknown}) => ({
 const studioClient = {fetch: vi.fn(), withConfig}
 const useClient = vi.fn((_options: {apiVersion: string}) => studioClient)
 
-/** Stable per perspective, as the Studio's own context value is. */
 const DRAFTS = {perspectiveStack: ['drafts']}
 const RELEASE = {perspectiveStack: ['rSpring', 'drafts']}
 const perspective = {current: DRAFTS}
 
 const typeNames = ['post']
 
-// No Studio locale in these tests: i18next's own fallback is the English
-// template `useTranslate` hands it as `defaultValue`. Stable, as i18next's `t`
-// is per locale — `load` depends on it.
 const translation = {t: (_key: string, options: {defaultValue: string}) => options.defaultValue}
 
 vi.mock('sanity', () => ({
@@ -44,8 +39,6 @@ describe('useDocumentCounts', () => {
   it('counts in the Studio’s perspective, and splits published from drafts in raw', async () => {
     const {result} = renderHook(() => useDocumentCounts({enabled: true, typeNames}))
 
-    // `useClient` caches by apiVersion alone, so perspectives have to be
-    // layered on the returned client rather than asked for by config.
     expect(useClient).toHaveBeenCalledWith({apiVersion: '2025-02-19'})
     expect(withConfig).toHaveBeenCalledWith({perspective: ['drafts']})
     expect(withConfig).toHaveBeenCalledWith({perspective: 'raw'})

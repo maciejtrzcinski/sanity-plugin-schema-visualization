@@ -21,7 +21,6 @@ afterEach(() => {
   warn.mockRestore()
 })
 
-/** Every warning message produced so far, joined for substring matching. */
 function warnings(): string {
   return warn.mock.calls.map((args: unknown[]) => String(args[0])).join('\n')
 }
@@ -157,9 +156,6 @@ describe('resolveConfig validation', () => {
     expect(warn).not.toHaveBeenCalled()
   })
 
-  // The warning is per problem, not per call: `resolveConfig` runs again on
-  // every options-identity change, and a misconfigured Studio would otherwise
-  // fill the console.
   it('reports each problem once per session', () => {
     const kinds = [documentKind, objectKind]
     resolveConfig({kinds})

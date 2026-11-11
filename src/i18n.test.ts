@@ -5,11 +5,7 @@ import {documentKind} from './kinds'
 
 declare global {
   interface ImportMeta {
-    /**
-     * Vite's own transform, declared here rather than pulled in through
-     * `vite/client` — Vite arrives with Vitest and isn't a dependency of this
-     * package. Only the one call below uses it.
-     */
+    /** Declared here: Vite isn't a dependency, so no `vite/client` types. */
     glob: (
       pattern: string,
       options: {query: '?raw'; import: 'default'; eager: true},
@@ -43,8 +39,6 @@ describe('defaultTranslate', () => {
 })
 
 describe('localized', () => {
-  // Stands in for a Studio running in another language: everything it knows
-  // is prefixed, so it's obvious in an assertion whether a key was used.
   const translate: TranslateFn = (key, values) =>
     typeof values?.defaultValue === 'string' && !(key in enUSResources)
       ? values.defaultValue
@@ -64,9 +58,6 @@ describe('localized', () => {
     expect(localized(translate, 'my-plugin.kind.label', 'Singletons')).toBe('Singletons')
   })
 
-  // The trap this exists for: `{...documentKind, id, label}` is how most
-  // custom kinds are written, and it carries `documentKind`'s resource key
-  // onto text that is no longer `documentKind`'s.
   it('drops a built-in key once the def no longer carries that built-in’s text', () => {
     const collectionKind = {...documentKind, id: 'collection', label: 'Collections'}
 
@@ -76,15 +67,7 @@ describe('localized', () => {
   })
 })
 
-/**
- * The bundle and the code that reads it drift silently — a renamed key renders
- * as a dotted string, a deleted call site leaves a resource nobody can reach —
- * so both directions are checked against the source itself. Keys are always
- * written as literals at their call sites, which is what makes this possible.
- */
 describe('the English bundle and its call sites', () => {
-  // Vite reads these at transform time, so the suite needs no filesystem access
-  // — and the glob fails loudly if the layout it assumes ever moves.
   const sources = import.meta.glob('./**/*.{ts,tsx}', {
     query: '?raw',
     import: 'default',
@@ -95,7 +78,6 @@ describe('the English bundle and its call sites', () => {
     .map(([, source]) => source)
     .join('\n')
 
-  /** Every `'dotted.key'` literal in the source, whatever it's passed to. */
   const quotedKeys = new Set(
     [...allSource.matchAll(/'([a-z][a-z0-9-]*(?:\.[a-z0-9-]+)+)'/g)].map((m) => m[1]),
   )
@@ -105,7 +87,6 @@ describe('the English bundle and its call sites', () => {
   )
 
   it('defines every key the plugin asks for', () => {
-    // Only keys that look like ours — an import path or a CSS var doesn't.
     const asked = [...quotedKeys].filter((key) =>
       [...baseKeys].some((known) => known.split('.')[0] === key.split('.')[0]),
     )

@@ -41,7 +41,6 @@ function line({
 
 describe('statsLine', () => {
   it('is built from the kind registry, dropping kinds with nothing to report', () => {
-    // `otherKind` has a count of 0, so it gets no segment.
     expect(line()).toBe('2 documents · 1 objects · 2 connections · 1 system · system types hidden')
   })
 
@@ -71,14 +70,11 @@ describe('statsLine', () => {
       predicate: () => true,
       summary: (selected) => (selected.value === 'unused' ? 'unused only' : undefined),
     }
-    // Without the system filter installed nothing calls system types hidden,
-    // so the wording can't go stale for a consumer who drops it.
     const defs = [createKindsFilter(defaultNodeKinds), usageFilter]
 
     expect(line({defs, filters: {...defaultFilterValues(defs), usage: ['unused']}})).toBe(
       '2 documents · 1 objects · 2 connections · 1 system · unused only',
     )
-    // At its default the filter says nothing, rather than appending an empty segment.
     expect(line({defs, filters: defaultFilterValues(defs)})).toBe(
       '2 documents · 1 objects · 2 connections · 1 system',
     )
@@ -98,14 +94,7 @@ describe('statsLine', () => {
     ).toBe('3 assets · 0 connections')
   })
 
-  /**
-   * `toolbar.stats.connections` has `_one`/`_other` forms and reads correctly at
-   * one. A kind segment doesn't: `toolbar.stats.kind` is `{{count}} {{label}}`
-   * and `label` is the kind's plural, so a single type reads "1 documents".
-   * Pinned as-is rather than quietly reworded — `NodeKindDef.singular` is right
-   * there (the focus combobox uses it), so making this read "1 document" is a
-   * copy change worth making deliberately, in every locale bundle at once.
-   */
+  /** "1 documents" is pinned on purpose: using `singular` is a copy change in every locale. */
   it('pluralises the connection count, but takes each kind label as it comes', () => {
     expect(
       line({

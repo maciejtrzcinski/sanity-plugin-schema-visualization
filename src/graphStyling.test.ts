@@ -98,7 +98,6 @@ describe('computeStyledNodes', () => {
     expect(a.selected).toBe(true)
     expect(a.className).toBe(DIM_CLASSES.lit)
     expect(b.className).toBe(DIM_CLASSES.lit)
-    // The canvas stylesheet fades it; its object — and so its card — is untouched.
     expect(c).toBe(nodes[2])
   })
 
@@ -106,7 +105,7 @@ describe('computeStyledNodes', () => {
     const nodes = [flowNode('post', {title: 'Post'}), flowNode('author', {title: 'Author'})]
     const result = computeStyledNodes(nodes, 'post', null, new Map())
 
-    expect(result[0]).toBe(nodes[0]) // matches "post" — unchanged
+    expect(result[0]).toBe(nodes[0])
     expect(result[1].className).toBe(DIM_CLASSES.miss)
   })
 
@@ -134,7 +133,6 @@ describe('computeStyledEdges', () => {
     expect(result[0].className).toBe(DIM_CLASSES.lit)
     expect(result[0].zIndex).toBe(1)
 
-    // Faded by the stylesheet, not by a new object: its path is not recomputed.
     expect(result[1]).toBe(unrelated)
   })
 

@@ -1,17 +1,9 @@
 import type {GraphEdgeKind, GraphNodeKind, SchemaGraph} from './types'
 
-/**
- * Exports built from the graph model rather than from the rendered canvas:
- * no DOM, no culling to lift, the same output in a browser, in Node and in a
- * test — which is what a future CLI export needs. The SVG export stays
- * DOM-based on purpose (see `exportSvg.ts`): it is a picture of the cards,
- * and a second hand-drawn copy of `TypeNode` would drift from the real one.
- */
+// Built from the graph model, not the canvas: no DOM, same output in Node.
 
 /**
- * Version of the JSON shape below. Bump it on any change a reader could trip
- * over — a renamed or retyped field — so a consumer can refuse a file it
- * doesn't understand instead of misreading it.
+ * Bump on any change a reader could trip over.
  *
  * @beta
  */
@@ -23,12 +15,7 @@ export interface GraphJson extends SchemaGraph {
   generator: 'sanity-plugin-schema-visualization'
 }
 
-/**
- * The graph as a versioned JSON document: every node with its fields, every
- * edge with the field path that produced it.
- *
- * @beta
- */
+/** @beta */
 export function graphToJson(graph: SchemaGraph): string {
   const doc: GraphJson = {
     schemaVersion: GRAPH_JSON_VERSION,
@@ -46,17 +33,12 @@ export interface MermaidOptions {
   kindLabel?: (kind: GraphNodeKind) => string
 }
 
-/** Arrow per built-in edge kind; anything else draws as a plain link. */
 const ARROWS: Partial<Record<GraphEdgeKind, string>> = {
   'reference': '-->',
   'external-reference': '==>',
   'reuses': '-.->',
 }
 
-/**
- * Mermaid's entity syntax for the characters that would end a quoted label or
- * be read as markup inside one.
- */
 function mermaidText(text: string): string {
   return text
     .replace(/#/g, '#35;')
@@ -67,17 +49,9 @@ function mermaidText(text: string): string {
 }
 
 /**
- * The graph as a Mermaid flowchart — for a README, a docs page or a pull
- * request, all of which render Mermaid natively. Types become nodes (grouped
- * into one subgraph per kind when there is more than one), connections become
- * links labelled with the field they come from: solid for a reference, thick
- * for a reference into another dataset, dotted for a reused type.
- *
- * Node ids are positional (`n0`, `n1`, …) because type names can hold
- * characters Mermaid ids can't. Mermaid refuses to render more than 500 links
- * by default; its `maxEdges` setting is only accepted from whoever renders the
- * diagram (`mermaid.initialize`), not from inside it, so a large schema's
- * export parses everywhere but renders only where that limit was raised.
+ * The graph as a Mermaid flowchart. Node ids are positional because type names
+ * can hold characters Mermaid ids can't. Mermaid renders at most 500 links
+ * unless the renderer raises `maxEdges`.
  *
  * @beta
  */

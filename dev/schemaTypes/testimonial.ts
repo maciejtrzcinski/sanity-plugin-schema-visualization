@@ -1,7 +1,6 @@
 import {defineField, defineType} from 'sanity'
 
-// Health demo: no field uses this type. It was meant to be one of
-// `page.sections` and never got added there.
+// Health demo: no field uses this type.
 export const testimonial = defineType({
   name: 'testimonial',
   title: 'Testimonial',

@@ -74,8 +74,7 @@ export const product = defineType({
       type: 'blockContent',
     }),
     defineField({
-      // Health demo: `callToAction` is an object, and a reference can only
-      // point at a document.
+      // Health demo: a reference can only point at a document, not an object.
       name: 'promo',
       title: 'Promo',
       type: 'reference',
