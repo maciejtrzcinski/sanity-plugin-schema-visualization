@@ -5,6 +5,12 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.0.0-beta.5](https://github.com/maciejtrzcinski/sanity-plugin-schema-visualization/compare/v1.0.0-beta.4...v1.0.0-beta.5) (2026-11-11)
+
+### Features
+
+- run Sanity Lint schema rules in the health panel ([#5](https://github.com/maciejtrzcinski/sanity-plugin-schema-visualization/issues/5)) ([7c15780](https://github.com/maciejtrzcinski/sanity-plugin-schema-visualization/commit/7c1578009ac826ebb4a27ed54de70206ea605b5a))
+
 ## [1.0.0-beta.4](https://github.com/maciejtrzcinski/sanity-plugin-schema-visualization/compare/v1.0.0-beta.3...v1.0.0-beta.4) (2026-11-01)
 
 ### Features
