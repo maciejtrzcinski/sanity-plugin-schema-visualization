@@ -124,7 +124,7 @@ function SchemaVisualization({toolName}: {toolName: string}) {
     cached: storedPrefs?.cache.documentCounts,
   })
 
-  const model = useGraphModel(graph, documentCounts.state.counts)
+  const model = useGraphModel(graph, documentCounts.state.counts, schema)
   const {healthIssues, nodesById, issuesByNodeId, stats, filterContext} = model
   const healthWarningCount = useMemo(
     () => healthIssues.filter((issue) => issue.severity === 'warning').length,

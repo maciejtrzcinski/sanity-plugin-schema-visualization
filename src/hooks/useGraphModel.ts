@@ -51,19 +51,21 @@ export function useSchemaGraph(schema: Schema): SchemaGraph {
  * Everything the toolbar, canvas and panels read off the graph, computed once
  * — so the canvas and the health rules can't disagree about what counts as an
  * orphan. Takes the live document counts because some health rules judge
- * them; with none loaded the map is simply empty.
+ * them; with none loaded the map is simply empty. Takes the schema the graph
+ * was built from for the rules that read what the graph leaves out.
  */
 export function useGraphModel(
   graph: SchemaGraph,
   docCountByType: ReadonlyMap<string, number>,
+  schema: Schema,
 ): GraphModel {
   const config = useConfig()
   const {kinds, kindById, catchAll} = config
   const t = useTranslate()
 
   const healthIssues = useMemo(
-    () => runHealthRules(graph, config, t, docCountByType),
-    [graph, config, t, docCountByType],
+    () => runHealthRules(graph, config, {t, docCountByType, schema}),
+    [graph, config, t, docCountByType, schema],
   )
 
   const nodesById = useMemo(() => new Map(graph.nodes.map((n) => [n.id, n])), [graph])

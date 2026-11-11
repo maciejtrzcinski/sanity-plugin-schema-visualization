@@ -73,6 +73,7 @@ describe('the /registry entry point', () => {
         "externalReferenceKind",
         "fallbackDescriber",
         "fieldSummaryBadge",
+        "fromSanityLint",
         "globalDocumentReferenceDescriber",
         "graphToJson",
         "graphToMermaid",

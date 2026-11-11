@@ -101,6 +101,14 @@ export {
 export type {NodeBadge, NodeBadgeContext, NodeBadgeDef, NodeBadgeSurface} from '../nodeBadges'
 export {insertBefore, replaceById, without} from '../registry'
 export type {Identified, ThemeColor, Tone} from '../registry'
+export {fromSanityLint} from '../sanityLint'
+export type {
+  SanityLintField,
+  SanityLintFinding,
+  SanityLintRule,
+  SanityLintRuleContext,
+  SanityLintType,
+} from '../sanityLint'
 export {schemaToGraph} from '../schemaToGraph'
 export type {SchemaToGraphOptions} from '../schemaToGraph'
 export type {
