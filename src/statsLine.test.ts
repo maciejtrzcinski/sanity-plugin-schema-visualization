@@ -77,7 +77,7 @@ describe('statsLine', () => {
     line({defs, filters: defaultFilterValues(defs)})
     expect(warn).toHaveBeenCalledOnce()
     expect(warningAt(warn)).toContain(
-      "`broken` filter's `summary` threw, so its note is left off the stats line",
+      "`broken` filter's `summary` failed, so its note is left off the stats line",
     )
   })
 

@@ -76,7 +76,7 @@ function indexOfId(defs: readonly Identified[], id: string, helper: string): num
   return at
 }
 
-/** What a warning says about one registry callback that threw. */
+/** What a warning says about one registry callback that failed. */
 export interface EntryFailure {
   /** The registry's name for an entry: `field badge`, `kind`. */
   registry: string
@@ -91,8 +91,9 @@ export interface EntryFailure {
 
 /**
  * `run()`, or `fallback` when it throws: a broken custom entry costs its own
- * output, not the tool. Warns once per entry and callback; `failure` is only
- * built once something has thrown.
+ * output, not the tool. A `run` that checks the callback's result throws on a
+ * bad one, so that counts too. Warns once per entry and callback; `failure` is
+ * only built once something has gone wrong.
  */
 export function guarded<T>(run: () => T, fallback: T, failure: () => EntryFailure): T {
   try {
@@ -102,7 +103,7 @@ export function guarded<T>(run: () => T, fallback: T, failure: () => EntryFailur
     const name = callback ? `\`${id}\` ${registry}'s \`${callback}\`` : `\`${id}\` ${registry}`
     warnOnce(
       callback ? `${registry}:${id}:${callback}` : `${registry}:${id}`,
-      `The ${name} threw${subject ? ` on ${subject}` : ''}, so ${outcome}. ` +
+      `The ${name} failed${subject ? ` on ${subject}` : ''}, so ${outcome}. ` +
         `Further failures from it are not reported.`,
       error,
     )

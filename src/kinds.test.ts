@@ -89,7 +89,7 @@ describe('a kind whose callback throws', () => {
     expect(classifyKind(postType, kinds)).toBe(documentKind)
     expect(warn).toHaveBeenCalledOnce()
     expect(warningAt(warn)).toContain(
-      "`broken` kind's `classify` threw on type `post`, so the next kind is tried",
+      "`broken` kind's `classify` failed on type `post`, so the next kind is tried",
     )
   })
 
@@ -107,7 +107,7 @@ describe('a kind whose callback throws', () => {
     expect(baseTypeFor(postType, broken)).toBe('broken')
     expect(baseTypeFor(postType, broken)).toBe('broken')
     expect(warn).toHaveBeenCalledOnce()
-    expect(warningAt(warn)).toContain("`broken` kind's `baseTypeOf` threw on type `post`")
+    expect(warningAt(warn)).toContain("`broken` kind's `baseTypeOf` failed on type `post`")
   })
 })
 

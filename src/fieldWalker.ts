@@ -340,7 +340,12 @@ export function walkFieldType(
       ),
     ) ?? fallbackDescriber
   return guarded(
-    () => describer.describe(type, ctx, recurse),
+    () => {
+      const result: unknown = describer.describe(type, ctx, recurse)
+      if (isDescribeResult(result)) return result
+      // Caught here, the failure is pinned on this describer, not the parent that reads it.
+      throw new TypeError('`describe` must return {typeLabel, links, options}')
+    },
     fallbackDescriber.describe(type, ctx, recurse),
     () => ({
       registry: 'field describer',
@@ -349,6 +354,19 @@ export function walkFieldType(
       subject: subject(),
       outcome: 'it is labelled by its type name alone',
     }),
+  )
+}
+
+function isDescribeResult(value: unknown): value is DescribeResult {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'typeLabel' in value &&
+    typeof value.typeLabel === 'string' &&
+    'links' in value &&
+    Array.isArray(value.links) &&
+    'options' in value &&
+    Array.isArray(value.options)
   )
 }
 

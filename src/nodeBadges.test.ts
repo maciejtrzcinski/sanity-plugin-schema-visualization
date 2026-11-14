@@ -173,7 +173,7 @@ describe('collectNodeBadges', () => {
     expect(labels(collectNodeBadges(node(), ctx(), badges))).toEqual(['fine'])
     expect(labels(collectNodeBadges(node({id: 'author'}), ctx(), badges))).toEqual(['fine'])
     expect(warn).toHaveBeenCalledOnce()
-    expect(warningAt(warn)).toContain('`boom` node badge threw on type `post`, so it is skipped')
+    expect(warningAt(warn)).toContain('`boom` node badge failed on type `post`, so it is skipped')
   })
 
   it('lets a caller drop or replace exactly one built-in by id', () => {

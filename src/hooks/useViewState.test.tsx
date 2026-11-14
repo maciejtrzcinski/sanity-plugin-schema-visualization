@@ -305,6 +305,7 @@ describe('useStoredViewPrefs', () => {
 
   it('reads back what was saved under the same key', () => {
     const key = 'prefs:round-trip'
+    onTestFinished(() => window.localStorage.removeItem(key))
     const filters = defaultFilterValues(createDefaultFilters())
     saveViewPrefs(window.localStorage, key, {
       prefs: {compactMode: true, direction: 'TB', filters},

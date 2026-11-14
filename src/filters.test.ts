@@ -179,7 +179,7 @@ describe('nodeMatchesFilters', () => {
     expect(nodeMatchesFilters(system, values, withBroken, ctx())).toBe(false)
     expect(warn).toHaveBeenCalledOnce()
     expect(warningAt(warn)).toContain(
-      "`broken` filter's `predicate` threw on type `post`, so the type stays visible",
+      "`broken` filter's `predicate` failed on type `post`, so the type stays visible",
     )
   })
 

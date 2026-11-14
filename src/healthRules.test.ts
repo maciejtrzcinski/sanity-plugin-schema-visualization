@@ -12,6 +12,7 @@ import {
   slugWithoutSourceRule,
   type HealthIssue,
   type HealthRule,
+  type RawIssue,
 } from './healthRules'
 import {documentKind, objectKind, otherKind, type NodeKindDef} from './kinds'
 import type {FieldSummary, GraphEdge, GraphNode, GraphNodeKind, SchemaGraph} from './types'
@@ -283,7 +284,31 @@ describe('computeHealthIssues', () => {
 
       expect(issues.map((i) => i.category)).toEqual(['orphaned-type'])
       expect(warn).toHaveBeenCalledOnce()
-      expect(warningAt(warn)).toContain('`boom` health rule threw, so its issues are left out')
+      expect(warningAt(warn)).toContain('`boom` health rule failed, so its issues are left out')
+    })
+
+    it('skips a rule that returns something other than an array of issues', () => {
+      const warn = spyOnWarnings()
+      // What a plain-JS config can hand over: a missed `return`, an `async` rule, a hole.
+      const returning = (id: string, value: unknown): HealthRule => ({
+        id,
+        label: id,
+        severity: 'warning',
+        // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- breaking the contract is the point
+        check: () => value as RawIssue[],
+      })
+      const rules = [
+        returning('nothing', undefined),
+        returning('async', Promise.resolve([])),
+        returning('hole', [null]),
+        ...defaultHealthRules,
+      ]
+
+      const g = graph([node({id: 'unused', kind: 'object'})])
+
+      expect(computeHealthIssues(g, {rules}).map((i) => i.category)).toEqual(['orphaned-type'])
+      expect(warn).toHaveBeenCalledTimes(3)
+      expect(warningAt(warn, 1)).toContain('`async` health rule failed')
     })
   })
 

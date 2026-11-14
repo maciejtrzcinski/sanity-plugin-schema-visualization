@@ -158,7 +158,7 @@ describe('guarded', () => {
 
     expect(warn).toHaveBeenCalledOnce()
     expect(warningAt(warn)).toBe(
-      "The `slug` field describer's `match` threw on type `slug`, so the next describer is " +
+      "The `slug` field describer's `match` failed on type `slug`, so the next describer is " +
         'tried. Further failures from it are not reported.',
     )
     expect(warn.mock.calls[0]?.[1]).toBe(error)
@@ -182,6 +182,6 @@ describe('guarded', () => {
       outcome: 'nothing is reported',
     }))
 
-    expect(warningAt(warn)).toMatch(/^The `naming` health rule threw, so nothing is reported\./)
+    expect(warningAt(warn)).toMatch(/^The `naming` health rule failed, so nothing is reported\./)
   })
 })

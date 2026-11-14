@@ -367,7 +367,8 @@ export interface ComputeHealthIssuesOptions {
 }
 
 /**
- * Runs each rule over the graph. A rule that throws is skipped and reported once.
+ * Runs each rule over the graph. A rule that throws, or returns something other
+ * than an array of issues, is skipped and reported once.
  *
  * @public
  */
@@ -391,21 +392,21 @@ export function runHealthRules(
   const issues: HealthIssue[] = []
 
   for (const rule of config.healthRules) {
-    const raw = guarded(
-      () => rule.check(ctx),
+    // Read inside the guard: an `async` rule or a missing `return` fails on `.map`.
+    const ruleIssues = guarded(
+      () =>
+        rule.check(ctx).map((item): HealthIssue => ({
+          id: `${rule.id}:${item.key}`,
+          severity: rule.severity,
+          category: rule.id,
+          nodeId: item.nodeId,
+          fieldName: item.fieldName,
+          message: item.message,
+        })),
       [],
       () => ({registry: 'health rule', id: rule.id, outcome: 'its issues are left out'}),
     )
-    for (const item of raw) {
-      issues.push({
-        id: `${rule.id}:${item.key}`,
-        severity: rule.severity,
-        category: rule.id,
-        nodeId: item.nodeId,
-        fieldName: item.fieldName,
-        message: item.message,
-      })
-    }
+    issues.push(...ruleIssues)
   }
 
   return issues

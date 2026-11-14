@@ -1,17 +1,15 @@
 // @vitest-environment jsdom
 import {act, fireEvent, screen, waitFor} from '@testing-library/react'
-import {createSchema, defineField, defineType} from 'sanity'
 import {afterEach, describe, expect, it, vi} from 'vitest'
 
 import {authorEdge, graph, makeFilterContext, seoEdge} from '../../test/fixtures'
 import {renderWithProviders} from '../../test/render'
 import {spyOnWarnings} from '../../test/warnings'
-import {defaultFieldDescribers, type FieldDescriber} from '../fieldWalker'
 import {createDefaultFilters, defaultFilterValues, type FilterDef} from '../filters'
 import {DIM_CLASSES} from '../graphStyling'
-import {useSchemaGraph} from '../hooks/useGraphModel'
 import {defaultNodeKinds} from '../kinds'
 import {LayoutController} from '../layoutController'
+import {defaultNodeBadges, type NodeBadgeDef} from '../nodeBadges'
 import {GraphCanvas, type GraphCanvasProps} from './GraphCanvas'
 
 const defaultFilters = defaultFilterValues(createDefaultFilters(defaultNodeKinds))
@@ -114,15 +112,10 @@ describe('GraphCanvas', () => {
     await waitForNodes(['author', 'seo'])
   })
 
-  it('still draws the schema when a custom describer and a custom filter throw', async () => {
+  it('still draws every card when a custom filter and a custom node badge fail', async () => {
     const warn = spyOnWarnings()
     const nope = () => {
       throw new Error('nope')
-    }
-    const brokenDescriber: FieldDescriber = {
-      id: 'broken',
-      match: (type) => type.jsonType === 'string',
-      describe: nope,
     }
     const brokenFilter: FilterDef = {
       id: 'broken',
@@ -134,49 +127,19 @@ describe('GraphCanvas', () => {
       predicate: nope,
     }
     const filters = [...createDefaultFilters(defaultNodeKinds), brokenFilter]
-    const schema = createSchema({
-      name: 'test',
-      types: [
-        defineType({
-          name: 'author',
-          title: 'Author',
-          type: 'document',
-          fields: [defineField({name: 'name', type: 'string'})],
-        }),
-        defineType({
-          name: 'post',
-          title: 'Post',
-          type: 'document',
-          fields: [defineField({name: 'author', type: 'reference', to: [{type: 'author'}]})],
-        }),
-      ],
+    const brokenBadge: NodeBadgeDef = {id: 'broken', badge: nope}
+
+    renderWithProviders(<GraphCanvas {...props({filters: defaultFilterValues(filters)})} />, {
+      options: {filters, nodeBadges: [brokenBadge, ...defaultNodeBadges]},
     })
 
-    function SchemaCanvas() {
-      const schemaGraph = useSchemaGraph(schema)
-      return (
-        <GraphCanvas
-          {...props({
-            graph: schemaGraph,
-            filters: defaultFilterValues(filters),
-            filterContext: makeFilterContext({graph: schemaGraph}),
-          })}
-        />
-      )
-    }
-
-    renderWithProviders(<SchemaCanvas />, {
-      options: {fieldDescribers: [brokenDescriber, ...defaultFieldDescribers], filters},
-    })
-
-    await waitForNodes(['author', 'post'])
-    expect(await screen.findByText('Author')).toBeDefined()
-    expect(await screen.findByText('Post')).toBeDefined()
+    await waitForNodes(['post', 'author', 'seo'])
+    expect(await screen.findByText('Blog post')).toBeDefined()
     const warned = warn.mock.calls.map(([message]) => String(message))
     expect(warned).toEqual(
       expect.arrayContaining([
-        expect.stringContaining("`broken` field describer's `describe` threw"),
-        expect.stringContaining("`broken` filter's `predicate` threw"),
+        expect.stringContaining("`broken` filter's `predicate` failed"),
+        expect.stringContaining('`broken` node badge failed'),
       ]),
     )
   })

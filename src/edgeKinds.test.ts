@@ -67,7 +67,7 @@ describe('edgeBadgeLabel', () => {
     expect(edgeBadgeLabel(edge(), broken, defaultTranslate)).toBe('reference')
     expect(warn).toHaveBeenCalledOnce()
     expect(warningAt(warn)).toContain(
-      "`reference` edge kind's `badgeLabel` threw on field `post.author`, so the badge reads " +
+      "`reference` edge kind's `badgeLabel` failed on field `post.author`, so the badge reads " +
         '`reference`',
     )
   })

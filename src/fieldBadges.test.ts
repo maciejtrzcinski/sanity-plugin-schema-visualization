@@ -219,7 +219,7 @@ describe('collectFieldBadges', () => {
     collectFieldBadges(type, ctx, [broken, requiredBadge])
 
     expect(warn).toHaveBeenCalledTimes(1)
-    expect(String(warn.mock.calls[0]?.[0])).toContain('`broken` field badge threw')
+    expect(String(warn.mock.calls[0]?.[0])).toContain('`broken` field badge failed')
   })
 })
 

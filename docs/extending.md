@@ -133,13 +133,17 @@ says so: it checks the registries it is handed and logs one
 console warning per problem, naming what the mistake costs you. Nothing throws,
 and a warning is reported once per session rather than on every render.
 
-### When an entry throws
+### When an entry fails
 
 A callback that throws costs only what it would have produced, never the tool.
 The plugin catches it, carries on with a fallback, and logs one console warning
 per entry and callback for the session. The warning names the entry, what it was
-called on and what happened instead, and the thrown error follows it for the
-stack.
+called on and what happened instead, and the error follows it for the stack.
+
+A describer or health rule whose result the plugin can't read fails the same
+way: a `describe` that doesn't return `{typeLabel, links, options}`, or a
+`check` that doesn't return an array of issues. A missed `return`, or a rule
+declared `async`, are the usual causes.
 
 | Callback                  | What the tool does instead                                      |
 | ------------------------- | --------------------------------------------------------------- |
@@ -154,14 +158,14 @@ stack.
 | `FilterDef.summary`       | Leaves its note off the stats line                              |
 | `HealthRule.check`        | Reports nothing for that rule                                   |
 
-A describer's fallback applies only at the level that threw: the rest of the
+A describer's fallback applies only at the level that failed: the rest of the
 field's type is still walked, so edges found elsewhere in it are still drawn.
 
-Two failures stay loud on purpose. A `filters` option given as a function runs
-once, when the tool resolves its config, so a throw there is a broken config and
-the tool opens on the error instead of a graph. An `icon` component that throws
-while rendering is a React error, and the tool's error boundary shows it in
-place of the canvas.
+Two failures stay loud on purpose, and either one replaces the whole tool with
+an error card. A `filters` option given as a function runs once, when the tool
+resolves its config, so a throw there is a broken config. An `icon` component
+that throws while rendering is a React error, caught by the tool's error
+boundary.
 
 ### Custom kinds
 
@@ -500,7 +504,7 @@ and `kindById` are prebuilt; `docCountByType` holds the loaded document
 counts, empty until someone loads them) and returns raw issues — `id`,
 `category` and `severity` are filled in around them. A rule that throws is
 skipped rather than taking the panel down — see
-[When an entry throws](#when-an-entry-throws).
+[When an entry fails](#when-an-entry-fails).
 
 `schema` is the compiled schema the graph came from, for what the graph leaves
 out. It's always set in the Studio, but outside it only when you pass one to
