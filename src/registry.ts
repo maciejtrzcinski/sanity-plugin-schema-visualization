@@ -76,10 +76,20 @@ function indexOfId(defs: readonly Identified[], id: string, helper: string): num
   return at
 }
 
+/** What warnings call one entry of each registry, and the key they're deduped under. */
+export type RegistryName =
+  | 'kind'
+  | 'edge kind'
+  | 'field describer'
+  | 'field badge'
+  | 'node badge'
+  | 'filter'
+  | 'health rule'
+  | 'Sanity Lint rule'
+
 /** What a warning says about one registry callback that failed. */
 export interface EntryFailure {
-  /** The registry's name for an entry: `field badge`, `kind`. */
-  registry: string
+  registry: RegistryName
   id: string
   /** Named when the entry has more than one callback. */
   callback?: string

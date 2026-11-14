@@ -2,6 +2,7 @@ import {missingIcon, missingSlugSource, missingTitle, rules} from '@sanity-labs/
 import {createSchema, defineArrayMember, defineField, defineType, type Schema} from 'sanity'
 import {describe, expect, it} from 'vitest'
 
+import {spyOnWarnings, warningAt} from '../test/warnings'
 import {computeHealthIssues} from './healthRules'
 import {fromSanityLint, type SanityLintRule, type SanityLintType} from './sanityLint'
 import {schemaToGraph} from './schemaToGraph'
@@ -113,7 +114,8 @@ describe('fromSanityLint', () => {
     expect(computeHealthIssues(graph, {schema, rules: iconRules})).toEqual([])
   })
 
-  it('keeps going past a definition the rule throws on', () => {
+  it('keeps going past a definition the rule throws on, and warns once', () => {
+    const warn = spyOnWarnings()
     const picky: SanityLintRule = {
       id: 'picky',
       name: 'Picky',
@@ -126,6 +128,11 @@ describe('fromSanityLint', () => {
     const schema = compile([author, bare('post')])
 
     expect(lint(schema, [picky]).map((issue) => issue.message)).toEqual(['post flagged'])
+    lint(schema, [picky])
+    expect(warn).toHaveBeenCalledOnce()
+    expect(warningAt(warn)).toContain(
+      '`picky` Sanity Lint rule failed on type `author`, so its findings there are left out',
+    )
   })
 
   it('reports a repeated finding once', () => {

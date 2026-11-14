@@ -2,6 +2,7 @@ import type {Schema} from 'sanity'
 
 import type {HealthContext, HealthRule, RawIssue} from './healthRules'
 import {getAuthoredTypes} from './intrinsics'
+import {guarded} from './registry'
 
 // Restates the slice of `@sanity-labs/schema-lint` used here, so it adds nothing to the bundle.
 
@@ -163,11 +164,17 @@ function toHealthRule(rule: SanityLintRule): HealthRule {
             message: help ? ctx.t('health.sanity-lint.message', {message, help}) : message,
           })
         }
-        try {
-          rule.check(type, {filePath: '', report})
-        } catch {
-          // One definition the rule can't read shouldn't hide what it found in the rest.
-        }
+        // One definition the rule can't read shouldn't hide what it found in the rest.
+        guarded(
+          () => rule.check(type, {filePath: '', report}),
+          undefined,
+          () => ({
+            registry: 'Sanity Lint rule',
+            id: rule.id,
+            subject: `type \`${type.name}\``,
+            outcome: 'its findings there are left out',
+          }),
+        )
       }
       return issues
     },

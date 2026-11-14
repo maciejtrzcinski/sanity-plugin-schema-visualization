@@ -324,7 +324,6 @@ export function walkFieldType(
       describers,
     )
 
-  const subject = () => `\`${type.name}\` in field \`${ctx.path}\``
   const describer =
     describers.find((d) =>
       guarded(
@@ -334,27 +333,33 @@ export function walkFieldType(
           registry: 'field describer',
           id: d.id,
           callback: 'match',
-          subject: subject(),
+          subject: walkSubject(type, ctx),
           outcome: 'the next describer is tried',
         }),
       ),
     ) ?? fallbackDescriber
-  return guarded(
+  const described = guarded(
     () => {
       const result: unknown = describer.describe(type, ctx, recurse)
       if (isDescribeResult(result)) return result
       // Caught here, the failure is pinned on this describer, not the parent that reads it.
       throw new TypeError('`describe` must return {typeLabel, links, options}')
     },
-    fallbackDescriber.describe(type, ctx, recurse),
+    undefined,
     () => ({
       registry: 'field describer',
       id: describer.id,
       callback: 'describe',
-      subject: subject(),
+      subject: walkSubject(type, ctx),
       outcome: 'it is labelled by its type name alone',
     }),
   )
+  // Built only on failure: this runs at every level of every field.
+  return described ?? fallbackDescriber.describe(type, ctx, recurse)
+}
+
+function walkSubject(type: SchemaType, ctx: WalkContext): string {
+  return `\`${type.name}\` in field \`${ctx.path}\``
 }
 
 function isDescribeResult(value: unknown): value is DescribeResult {

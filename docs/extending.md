@@ -145,18 +145,19 @@ way: a `describe` that doesn't return `{typeLabel, links, options}`, or a
 `check` that doesn't return an array of issues. A missed `return`, or a rule
 declared `async`, are the usual causes.
 
-| Callback                  | What the tool does instead                                      |
-| ------------------------- | --------------------------------------------------------------- |
-| `NodeKindDef.classify`    | Treats it as no match: the next kind, then the catch-all        |
-| `NodeKindDef.baseTypeOf`  | Uses the kind id as the base type                               |
-| `EdgeKindDef.badgeLabel`  | Labels the connection badge with the edge kind id               |
-| `FieldDescriber.match`    | Treats it as no match and tries the next describer              |
-| `FieldDescriber.describe` | Uses `fallbackDescriber`'s result: the bare type name, no edges |
-| `FieldBadgeDef.badge`     | Skips that badge on that field                                  |
-| `NodeBadgeDef.badge`      | Skips that badge on that type                                   |
-| `FilterDef.predicate`     | Lets the type through, so a broken filter never hides anything  |
-| `FilterDef.summary`       | Leaves its note off the stats line                              |
-| `HealthRule.check`        | Reports nothing for that rule                                   |
+| Callback                                     | What the tool does instead                                      |
+| -------------------------------------------- | --------------------------------------------------------------- |
+| `NodeKindDef.classify`                       | Treats it as no match: the next kind, then the catch-all        |
+| `NodeKindDef.baseTypeOf`                     | Uses the kind id as the base type                               |
+| `EdgeKindDef.badgeLabel`                     | Labels the connection badge with the edge kind id               |
+| `FieldDescriber.match`                       | Treats it as no match and tries the next describer              |
+| `FieldDescriber.describe`                    | Uses `fallbackDescriber`'s result: the bare type name, no edges |
+| `FieldBadgeDef.badge`                        | Skips that badge on that field                                  |
+| `NodeBadgeDef.badge`                         | Skips that badge on that type                                   |
+| `FilterDef.predicate`                        | Lets the type through, so a broken filter never hides anything  |
+| `FilterDef.summary`                          | Leaves its note off the stats line                              |
+| `HealthRule.check`                           | Reports nothing for that rule                                   |
+| `SanityLintRule.check`, via `fromSanityLint` | Leaves out its findings on that type, keeping the rest          |
 
 A describer's fallback applies only at the level that failed: the rest of the
 field's type is still walked, so edges found elsewhere in it are still drawn.
