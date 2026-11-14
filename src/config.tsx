@@ -13,7 +13,7 @@ import {
 import {defaultHealthRules, type HealthRule} from './healthRules'
 import {catchAllKind, kindIdsWith, type NodeKindDef} from './kinds'
 import {defaultNodeBadges, type NodeBadgeDef} from './nodeBadges'
-import {duplicateIds, duplicates, indexById, type Registered} from './registry'
+import {duplicateIds, duplicates, indexById, type Registered, type RegistryName} from './registry'
 import {resolveGraphOptions, type SchemaToGraphOptions} from './schemaToGraph'
 import type {GraphEdgeKind, GraphNodeKind} from './types'
 import {RESERVED_URL_PARAMS} from './urlState'
@@ -119,7 +119,7 @@ function validateConfig(
       `— the last entry — is standing in as the fallback for types nothing classifies. Flag it explicitly.`,
   })
 
-  validateRegistry(edgeKinds, 'edge-kind', {
+  validateRegistry(edgeKinds, 'edge kind', {
     duplicate: (id) =>
       `Two or more kinds in \`edgeKinds\` share the id \`${id}\`. Edges are drawn with the last ` +
       `one's style while the legend lists both — give each edge kind its own id.`,
@@ -129,20 +129,20 @@ function validateConfig(
       `— the last entry — is standing in as the fallback for edges a describer emits with an unregistered kind.`,
   })
 
-  validateRegistry(fieldDescribers, 'field-describer', {
+  validateRegistry(fieldDescribers, 'field describer', {
     duplicate: (id) =>
       `Two or more describers in \`fieldDescribers\` share the id \`${id}\`. Only the first can ever ` +
       `match, and \`replaceById\` / \`without\` act on the first too, leaving the other behind — ` +
       `give each describer its own id.`,
   })
 
-  validateRegistry(fieldBadges, 'field-badge', {
+  validateRegistry(fieldBadges, 'field badge', {
     duplicate: (id) =>
       `Two or more badges in \`fieldBadges\` share the id \`${id}\`. Every entry runs, so the field ` +
       `row shows both, and replacing one by id leaves the other behind — give each badge its own id.`,
   })
 
-  validateRegistry(nodeBadges, 'node-badge', {
+  validateRegistry(nodeBadges, 'node badge', {
     duplicate: (id) =>
       `Two or more badges in \`nodeBadges\` share the id \`${id}\`. Every entry runs, so the card ` +
       `header shows both, and replacing one by id leaves the other behind — give each badge its own id.`,
@@ -178,7 +178,7 @@ function validateConfig(
 // `name` decides the `warnOnce` keys; changing one re-warns sessions already told.
 function validateRegistry(
   defs: readonly Registered[],
-  name: string,
+  name: RegistryName,
   messages: {
     duplicate: (id: string) => string
     empty?: string

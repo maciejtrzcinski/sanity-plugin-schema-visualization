@@ -1,6 +1,7 @@
 import {createSchema, defineField, defineType, isObjectSchemaType, type SchemaType} from 'sanity'
 import {describe, expect, it} from 'vitest'
 
+import {spyOnWarnings, warningAt} from '../test/warnings'
 import {
   arrayDescriber,
   crossDatasetReferenceDescriber,
@@ -349,6 +350,134 @@ describe('walkFieldType', () => {
       links: [],
       options: [],
     })
+  })
+
+  it('treats a describer whose `match` throws as no match, and warns once', () => {
+    const warn = spyOnWarnings()
+    const broken: FieldDescriber = {
+      id: 'broken',
+      match: () => {
+        throw new Error('nope')
+      },
+      describe: () => {
+        throw new Error('Expected a throwing `match` to keep this describer out')
+      },
+    }
+    const ref = fieldType(
+      [author, post(defineField({name: 'author', type: 'reference', to: [{type: 'author'}]}))],
+      'post',
+      'author',
+    )
+    const describers = [broken, ...defaultFieldDescribers]
+
+    const result = walk(ref, {registered: ['author'], describers, fieldName: 'author'})
+    walk(ref, {registered: ['author'], describers, fieldName: 'author'})
+
+    expect(result.links).toEqual([
+      {kind: 'reference', target: 'author', path: 'author', weak: false},
+    ])
+    expect(warn).toHaveBeenCalledOnce()
+    expect(warningAt(warn)).toContain(
+      "`broken` field describer's `match` failed on `reference` in field `author`, so the next " +
+        'describer is tried',
+    )
+  })
+
+  it('takes the catch-all’s result where a describer’s `describe` throws, and only there', () => {
+    const warn = spyOnWarnings()
+    const broken: FieldDescriber = {
+      id: 'broken',
+      match: (type) => type.jsonType === 'string',
+      describe: () => {
+        throw new Error('nope')
+      },
+    }
+    const meta = fieldType(
+      [
+        author,
+        post(
+          defineField({
+            name: 'meta',
+            type: 'object',
+            fields: [
+              defineField({name: 'note', type: 'string'}),
+              defineField({name: 'by', type: 'reference', to: [{type: 'author'}]}),
+            ],
+          }),
+        ),
+      ],
+      'post',
+      'meta',
+    )
+    const describers = [broken, ...defaultFieldDescribers]
+
+    const title = fieldType([post(defineField({name: 'title', type: 'string'}))], 'post', 'title')
+    const fallback = fallbackDescriber.describe(
+      title,
+      rootWalkContext('field', () => false),
+      noRecurse,
+    )
+    expect(walk(title, {describers})).toEqual(fallback)
+    expect(paths(walk(meta, {registered: ['author'], describers, fieldName: 'meta'}))).toEqual([
+      'meta.by',
+    ])
+    expect(warn).toHaveBeenCalledOnce()
+    expect(warningAt(warn)).toContain(
+      "`broken` field describer's `describe` failed on `string` in field `field`",
+    )
+  })
+
+  /** A missed `return` in a plain-JS config: matches strings, describes them as nothing. */
+  const returnsNothing: FieldDescriber = {
+    id: 'broken',
+    match: (type) => type.jsonType === 'string',
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- breaking the contract is the point
+    describe: () => undefined as unknown as DescribeResult,
+  }
+
+  it('takes the catch-all’s result for a describer that returns something unusable', () => {
+    const warn = spyOnWarnings()
+    const title = fieldType([post(defineField({name: 'title', type: 'string'}))], 'post', 'title')
+
+    expect(walk(title, {describers: [returnsNothing, ...defaultFieldDescribers]})).toEqual({
+      typeLabel: 'string',
+      links: [],
+      options: [],
+    })
+    expect(warningAt(warn)).toContain("`broken` field describer's `describe` failed")
+  })
+
+  it('pins an unusable nested result on the describer that returned it, not its parent', () => {
+    const warn = spyOnWarnings()
+    const meta = fieldType(
+      [
+        author,
+        post(
+          defineField({
+            name: 'meta',
+            type: 'object',
+            fields: [
+              defineField({name: 'note', type: 'string'}),
+              defineField({name: 'by', type: 'reference', to: [{type: 'author'}]}),
+            ],
+          }),
+        ),
+      ],
+      'post',
+      'meta',
+    )
+
+    const result = walk(meta, {
+      registered: ['author'],
+      describers: [returnsNothing, ...defaultFieldDescribers],
+      fieldName: 'meta',
+    })
+
+    expect(paths(result)).toEqual(['meta.by'])
+    expect(warn).toHaveBeenCalledOnce()
+    expect(warningAt(warn)).toContain(
+      "`broken` field describer's `describe` failed on `string` in field `meta.note`",
+    )
   })
 
   it('routes the words of a label through the context translator', () => {

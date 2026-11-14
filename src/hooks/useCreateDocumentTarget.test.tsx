@@ -4,6 +4,7 @@ import type {ReactNode} from 'react'
 import {beforeEach, describe, expect, it, vi} from 'vitest'
 
 import {makeNode} from '../../test/fixtures'
+import {spyOnWarnings, warningAt} from '../../test/warnings'
 import {ConfigProvider} from '../config'
 import {useCreateDocumentTarget} from './useCreateDocumentTarget'
 
@@ -57,14 +58,18 @@ describe('useCreateDocumentTarget', () => {
     expect(result.current).toBeUndefined()
   })
 
-  it('hides it when the Studio’s new-document options throw', () => {
+  it('hides it when the Studio’s new-document options throw, and warns with the error', () => {
+    const warn = spyOnWarnings()
+    const error = new Error('bad newDocumentOptions')
     resolveNewDocumentOptions.mockImplementation(() => {
-      throw new Error('bad newDocumentOptions')
+      throw error
     })
     const {result} = renderHook(() => useCreateDocumentTarget(post), {wrapper})
 
     expect(result.current).toBeUndefined()
     expect(checkDocumentPermission).not.toHaveBeenCalled()
+    expect(warningAt(warn)).toContain('offers no "New" link')
+    expect(warn.mock.calls[0]?.[1]).toBe(error)
   })
 
   it('asks nothing when no node is selected', () => {

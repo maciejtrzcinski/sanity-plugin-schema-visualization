@@ -4,10 +4,12 @@ import {afterEach, describe, expect, it, vi} from 'vitest'
 
 import {authorEdge, graph, makeFilterContext, seoEdge} from '../../test/fixtures'
 import {renderWithProviders} from '../../test/render'
+import {spyOnWarnings} from '../../test/warnings'
 import {createDefaultFilters, defaultFilterValues, type FilterDef} from '../filters'
 import {DIM_CLASSES} from '../graphStyling'
 import {defaultNodeKinds} from '../kinds'
 import {LayoutController} from '../layoutController'
+import {defaultNodeBadges, type NodeBadgeDef} from '../nodeBadges'
 import {GraphCanvas, type GraphCanvasProps} from './GraphCanvas'
 
 const defaultFilters = defaultFilterValues(createDefaultFilters(defaultNodeKinds))
@@ -108,6 +110,38 @@ describe('GraphCanvas', () => {
     )
 
     await waitForNodes(['author', 'seo'])
+  })
+
+  it('still draws every card when a custom filter and a custom node badge fail', async () => {
+    const warn = spyOnWarnings()
+    const nope = () => {
+      throw new Error('nope')
+    }
+    const brokenFilter: FilterDef = {
+      id: 'broken',
+      label: 'Broken',
+      type: 'single',
+      options: [{value: 'all', label: 'All'}],
+      defaultValues: ['all'],
+      urlParam: 'broken',
+      predicate: nope,
+    }
+    const filters = [...createDefaultFilters(defaultNodeKinds), brokenFilter]
+    const brokenBadge: NodeBadgeDef = {id: 'broken', badge: nope}
+
+    renderWithProviders(<GraphCanvas {...props({filters: defaultFilterValues(filters)})} />, {
+      options: {filters, nodeBadges: [brokenBadge, ...defaultNodeBadges]},
+    })
+
+    await waitForNodes(['post', 'author', 'seo'])
+    expect(await screen.findByText('Blog post')).toBeDefined()
+    const warned = warn.mock.calls.map(([message]) => String(message))
+    expect(warned).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("`broken` filter's `predicate` failed"),
+        expect.stringContaining('`broken` node badge failed'),
+      ]),
+    )
   })
 
   it('isolates a focused type and its direct neighbours', async () => {

@@ -1,14 +1,17 @@
-import {describe, expect, it} from 'vitest'
+import {describe, expect, it, vi} from 'vitest'
 
+import {spyOnWarnings, warningAt} from '../test/warnings'
 import {
   catchAllOf,
   cssColor,
   duplicateIds,
   duplicates,
+  guarded,
   indexById,
   insertBefore,
   replaceById,
   without,
+  type EntryFailure,
   type Registered,
 } from './registry'
 
@@ -125,5 +128,60 @@ describe('cssColor', () => {
     expect(cssColor({cssVar: '--card-badge-primary-dot-color', fallback: '#2276fc'})).toBe(
       'var(--card-badge-primary-dot-color, #2276fc)',
     )
+  })
+})
+
+describe('guarded', () => {
+  const error = new Error('nope')
+  const boom = (): string => {
+    throw error
+  }
+  const matchFailure = (): EntryFailure => ({
+    registry: 'field describer',
+    id: 'slug',
+    callback: 'match',
+    subject: 'type `slug`',
+    outcome: 'the next describer is tried',
+  })
+
+  it('returns what the callback returns, without building a failure', () => {
+    const failure = vi.fn(matchFailure)
+    expect(guarded(() => 'ok', 'fallback', failure)).toBe('ok')
+    expect(failure).not.toHaveBeenCalled()
+  })
+
+  it('returns the fallback for a throw, and warns once with the error', () => {
+    const warn = spyOnWarnings()
+
+    expect(guarded(boom, 'fallback', matchFailure)).toBe('fallback')
+    expect(guarded(boom, 'fallback', matchFailure)).toBe('fallback')
+
+    expect(warn).toHaveBeenCalledOnce()
+    expect(warningAt(warn)).toBe(
+      "The `slug` field describer's `match` failed on type `slug`, so the next describer is " +
+        'tried. Further failures from it are not reported.',
+    )
+    expect(warn.mock.calls[0]?.[1]).toBe(error)
+  })
+
+  it('reports each callback of an entry on its own', () => {
+    const warn = spyOnWarnings()
+
+    guarded(boom, '', matchFailure)
+    guarded(boom, '', () => ({...matchFailure(), callback: 'describe'}))
+
+    expect(warn).toHaveBeenCalledTimes(2)
+  })
+
+  it('names the entry alone when it has one callback and no single subject', () => {
+    const warn = spyOnWarnings()
+
+    guarded(boom, '', () => ({
+      registry: 'health rule',
+      id: 'naming',
+      outcome: 'nothing is reported',
+    }))
+
+    expect(warningAt(warn)).toMatch(/^The `naming` health rule failed, so nothing is reported\./)
   })
 })

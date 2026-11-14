@@ -97,7 +97,8 @@ run here too, next to these. See
 
 - Compact mode, layout direction, filters and the last doc counts are saved in
   `localStorage`, separately for each project, dataset and workspace. A shared
-  link overrides them.
+  link overrides them. Where the browser blocks site data, nothing is saved and
+  the tool starts from the defaults.
 - Over 60 types (or 240 connections) the layout switches from dagre to a
   layered layout of its own, so hundreds of types still lay out in
   milliseconds.

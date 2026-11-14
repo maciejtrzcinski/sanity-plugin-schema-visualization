@@ -20,7 +20,8 @@ export function useCreateDocumentTarget(node: GraphNode | null): CreateDocumentT
     } catch (err) {
       warnOnce(
         'create-document:new-document-options',
-        `Could not resolve the Studio's new-document options, so the detail panel offers no "New" link: ${String(err)}`,
+        `Could not resolve the Studio's new-document options, so the detail panel offers no "New" link.`,
+        err,
       )
       return undefined
     }

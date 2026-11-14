@@ -1,5 +1,6 @@
 import {describe, expect, it} from 'vitest'
 
+import {spyOnWarnings, warningAt} from '../test/warnings'
 import {
   computeHealthIssues,
   createAttributePathsRule,
@@ -11,6 +12,7 @@ import {
   slugWithoutSourceRule,
   type HealthIssue,
   type HealthRule,
+  type RawIssue,
 } from './healthRules'
 import {documentKind, objectKind, otherKind, type NodeKindDef} from './kinds'
 import type {FieldSummary, GraphEdge, GraphNode, GraphNodeKind, SchemaGraph} from './types'
@@ -265,7 +267,8 @@ describe('computeHealthIssues', () => {
       expect(issues[0]).toMatchObject({id: 'naming:Post', category: 'naming', severity: 'info'})
     })
 
-    it('skips a rule that throws rather than failing the whole run', () => {
+    it('skips a rule that throws rather than failing the whole run, and warns once', () => {
+      const warn = spyOnWarnings()
       const exploding: HealthRule = {
         id: 'boom',
         label: 'Boom',
@@ -277,8 +280,35 @@ describe('computeHealthIssues', () => {
 
       const g = graph([node({id: 'unused', kind: 'object'})])
       const issues = computeHealthIssues(g, {rules: [exploding, ...defaultHealthRules]})
+      computeHealthIssues(g, {rules: [exploding, ...defaultHealthRules]})
 
       expect(issues.map((i) => i.category)).toEqual(['orphaned-type'])
+      expect(warn).toHaveBeenCalledOnce()
+      expect(warningAt(warn)).toContain('`boom` health rule failed, so its issues are left out')
+    })
+
+    it('skips a rule that returns something other than an array of issues', () => {
+      const warn = spyOnWarnings()
+      // What a plain-JS config can hand over: a missed `return`, an `async` rule, a hole.
+      const returning = (id: string, value: unknown): HealthRule => ({
+        id,
+        label: id,
+        severity: 'warning',
+        // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- breaking the contract is the point
+        check: () => value as RawIssue[],
+      })
+      const rules = [
+        returning('nothing', undefined),
+        returning('async', Promise.resolve([])),
+        returning('hole', [null]),
+        ...defaultHealthRules,
+      ]
+
+      const g = graph([node({id: 'unused', kind: 'object'})])
+
+      expect(computeHealthIssues(g, {rules}).map((i) => i.category)).toEqual(['orphaned-type'])
+      expect(warn).toHaveBeenCalledTimes(3)
+      expect(warningAt(warn, 1)).toContain('`async` health rule failed')
     })
   })
 

@@ -1,7 +1,9 @@
 import {createSchema, defineField, defineType} from 'sanity'
 import {describe, expect, it} from 'vitest'
 
+import {spyOnWarnings, warningAt} from '../test/warnings'
 import {
+  baseTypeFor,
   catchAllKind,
   classifyKind,
   defaultNodeKinds,
@@ -70,5 +72,48 @@ describe('classifyKind', () => {
     const claimsNothing: NodeKindDef = {...objectKind, classify: () => false}
     const catchAll: NodeKindDef = {...otherKind, classify: () => false, isCatchAll: true}
     expect(classifyKind(postType, [claimsNothing, catchAll])).toBe(catchAll)
+  })
+})
+
+describe('a kind whose callback throws', () => {
+  const nope = () => {
+    throw new Error('nope')
+  }
+
+  it('is passed over by `classify`, and warns once', () => {
+    const warn = spyOnWarnings()
+    const broken: NodeKindDef = {...documentKind, id: 'broken', classify: nope}
+    const kinds = [broken, ...defaultNodeKinds]
+
+    expect(classifyKind(postType, kinds)).toBe(documentKind)
+    expect(classifyKind(postType, kinds)).toBe(documentKind)
+    expect(warn).toHaveBeenCalledOnce()
+    expect(warningAt(warn)).toContain(
+      "`broken` kind's `classify` failed on type `post`, so the next kind is tried",
+    )
+  })
+
+  it('falls through to the catch-all when no other kind claims the type', () => {
+    spyOnWarnings()
+    const broken: NodeKindDef = {...documentKind, id: 'broken', classify: nope}
+
+    expect(classifyKind(postType, [broken, otherKind])).toBe(otherKind)
+  })
+
+  it('reads the kind id as the base type when `baseTypeOf` throws, and warns once', () => {
+    const warn = spyOnWarnings()
+    const broken: NodeKindDef = {...documentKind, id: 'broken', baseTypeOf: nope}
+
+    expect(baseTypeFor(postType, broken)).toBe('broken')
+    expect(baseTypeFor(postType, broken)).toBe('broken')
+    expect(warn).toHaveBeenCalledOnce()
+    expect(warningAt(warn)).toContain("`broken` kind's `baseTypeOf` failed on type `post`")
+  })
+})
+
+describe('baseTypeFor', () => {
+  it('asks the kind, or falls back to its id when it has no `baseTypeOf`', () => {
+    expect(baseTypeFor(postType, otherKind)).toBe('object')
+    expect(baseTypeFor(postType, {...otherKind, baseTypeOf: undefined})).toBe('other')
   })
 })

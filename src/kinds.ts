@@ -4,7 +4,7 @@ import {LinkIcon} from '@sanity/icons/Link'
 import type {ComponentType} from 'react'
 import {isDocumentSchemaType, isObjectSchemaType, type SchemaType} from 'sanity'
 
-import {catchAllOf, type ThemeColor, type Tone} from './registry'
+import {catchAllOf, guarded, type ThemeColor, type Tone} from './registry'
 import type {GraphNodeKind} from './types'
 
 /**
@@ -135,9 +135,33 @@ export function classifyKind(
   type: SchemaType,
   kinds: readonly NodeKindDef[] = defaultNodeKinds,
 ): NodeKindDef {
-  return kinds.find((k) => k.classify(type)) ?? catchAllKind(kinds)
+  return (
+    kinds.find((k) =>
+      guarded(
+        () => k.classify(type),
+        false,
+        () => ({
+          registry: 'kind',
+          id: k.id,
+          callback: 'classify',
+          subject: `type \`${type.name}\``,
+          outcome: 'the next kind is tried',
+        }),
+      ),
+    ) ?? catchAllKind(kinds)
+  )
 }
 
 export function baseTypeFor(type: SchemaType, kind: NodeKindDef): string {
-  return kind.baseTypeOf ? kind.baseTypeOf(type) : kind.id
+  return guarded(
+    () => kind.baseTypeOf?.(type) ?? kind.id,
+    kind.id,
+    () => ({
+      registry: 'kind',
+      id: kind.id,
+      callback: 'baseTypeOf',
+      subject: `type \`${type.name}\``,
+      outcome: `its base type reads \`${kind.id}\``,
+    }),
+  )
 }

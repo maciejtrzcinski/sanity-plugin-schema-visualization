@@ -9,6 +9,7 @@ import {
 
 import {defaultTranslate, type TranslateFn} from './i18n'
 import {INTRINSIC_FIELD_NAMES} from './intrinsics'
+import {guarded} from './registry'
 import type {FieldLink, FieldOptionSummary} from './types'
 
 export const DEFAULT_MAX_DEPTH = 8
@@ -323,8 +324,55 @@ export function walkFieldType(
       describers,
     )
 
-  const describer = describers.find((d) => d.match(type, ctx)) ?? fallbackDescriber
-  return describer.describe(type, ctx, recurse)
+  const describer =
+    describers.find((d) =>
+      guarded(
+        () => d.match(type, ctx),
+        false,
+        () => ({
+          registry: 'field describer',
+          id: d.id,
+          callback: 'match',
+          subject: walkSubject(type, ctx),
+          outcome: 'the next describer is tried',
+        }),
+      ),
+    ) ?? fallbackDescriber
+  const described = guarded(
+    () => {
+      const result: unknown = describer.describe(type, ctx, recurse)
+      if (isDescribeResult(result)) return result
+      // Caught here, the failure is pinned on this describer, not the parent that reads it.
+      throw new TypeError('`describe` must return {typeLabel, links, options}')
+    },
+    undefined,
+    () => ({
+      registry: 'field describer',
+      id: describer.id,
+      callback: 'describe',
+      subject: walkSubject(type, ctx),
+      outcome: 'it is labelled by its type name alone',
+    }),
+  )
+  // Built only on failure: this runs at every level of every field.
+  return described ?? fallbackDescriber.describe(type, ctx, recurse)
+}
+
+function walkSubject(type: SchemaType, ctx: WalkContext): string {
+  return `\`${type.name}\` in field \`${ctx.path}\``
+}
+
+function isDescribeResult(value: unknown): value is DescribeResult {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'typeLabel' in value &&
+    typeof value.typeLabel === 'string' &&
+    'links' in value &&
+    Array.isArray(value.links) &&
+    'options' in value &&
+    Array.isArray(value.options)
+  )
 }
 
 export function rootWalkContext(

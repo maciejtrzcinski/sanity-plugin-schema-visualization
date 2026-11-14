@@ -66,13 +66,27 @@ function readStoredFilters(raw: unknown): Record<string, string[]> {
   return result
 }
 
+/**
+ * `window.localStorage`, or `null` where there's none to have. The getter
+ * itself throws `SecurityError` when site data is blocked, before any try
+ * around `getItem` could catch it.
+ */
+export function safeLocalStorage(): Storage | null {
+  try {
+    return typeof window === 'undefined' ? null : window.localStorage
+  } catch {
+    return null
+  }
+}
+
 /** `null` on anything unexpected. Fields are checked one by one, so a bad one degrades alone. */
 export function loadViewPrefs(
-  storage: Storage,
+  storage: Storage | null,
   key: string,
   defs: readonly FilterDef[],
   readCache: (raw: Record<string, unknown>) => FeatureCache,
 ): ViewPrefs | null {
+  if (!storage) return null
   try {
     const raw = storage.getItem(key)
     if (!raw) return null
@@ -97,7 +111,8 @@ export function loadViewPrefs(
 }
 
 /** Best-effort: `localStorage` can throw (private mode, quota, disabled). */
-export function saveViewPrefs(storage: Storage, key: string, viewPrefs: ViewPrefs): void {
+export function saveViewPrefs(storage: Storage | null, key: string, viewPrefs: ViewPrefs): void {
+  if (!storage) return
   try {
     const {prefs, cache} = viewPrefs
     const serialized: SerializedViewPrefs = {

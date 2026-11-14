@@ -1,8 +1,8 @@
 import {isDeprecatedSchemaType, type SchemaType} from 'sanity'
 
-import {warnOnce} from './compat'
 import {getTypeOptions} from './fieldWalker'
 import {defaultTranslate, type TranslateFn} from './i18n'
+import {guarded} from './registry'
 import type {CollectedFieldOption, FieldConstraint, FieldOptionSummary} from './types'
 
 /**
@@ -223,17 +223,16 @@ export function collectFieldBadges(
   const collected: CollectedFieldOption[] = []
 
   for (const def of badges) {
-    let badge: FieldOptionSummary | undefined
-    try {
-      badge = def.badge(type, context)
-    } catch {
-      warnOnce(
-        `field-badge:${def.id}`,
-        `The \`${def.id}\` field badge threw on field \`${ctx.name}\`, so it is skipped there. ` +
-          `Further failures from this badge are not reported.`,
-      )
-      continue
-    }
+    const badge = guarded(
+      () => def.badge(type, context),
+      undefined,
+      () => ({
+        registry: 'field badge',
+        id: def.id,
+        subject: `field \`${ctx.name}\``,
+        outcome: 'it is skipped there',
+      }),
+    )
     if (badge) collected.push({...badge, id: def.id})
   }
 

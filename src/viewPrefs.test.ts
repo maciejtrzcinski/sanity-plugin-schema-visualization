@@ -1,10 +1,11 @@
-import {describe, expect, it} from 'vitest'
+import {afterEach, describe, expect, it, vi} from 'vitest'
 
 import {readStoredDocumentCounts} from './documentCounts'
 import {createDefaultFilters, defaultFilterValues, type FilterValues} from './filters'
 import {
   buildViewPrefsStorageKey,
   loadViewPrefs,
+  safeLocalStorage,
   saveViewPrefs,
   type FeatureCache,
   type ViewPrefs,
@@ -213,5 +214,35 @@ describe('saveViewPrefs / loadViewPrefs', () => {
     }
     expect(() => saveViewPrefs(throwingStorage, 'key', prefs)).not.toThrow()
     expect(loadViewPrefs(throwingStorage, 'key', defs, readCache)).toBeNull()
+  })
+
+  it('loads nothing and saves nothing without storage', () => {
+    expect(loadViewPrefs(null, 'key', defs, readCache)).toBeNull()
+    expect(() => saveViewPrefs(null, 'key', prefs)).not.toThrow()
+  })
+})
+
+describe('safeLocalStorage', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('is null outside a browser', () => {
+    expect(safeLocalStorage()).toBeNull()
+  })
+
+  it('is null when reading `window.localStorage` throws', () => {
+    vi.stubGlobal('window', {
+      get localStorage(): Storage {
+        throw new DOMException('denied', 'SecurityError')
+      },
+    })
+    expect(safeLocalStorage()).toBeNull()
+  })
+
+  it('hands back the browser’s storage when it can be read', () => {
+    const storage = fakeStorage()
+    vi.stubGlobal('window', {localStorage: storage})
+    expect(safeLocalStorage()).toBe(storage)
   })
 })

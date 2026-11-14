@@ -1,6 +1,7 @@
 import {selectionFor, type FilterContext, type FilterDef, type FilterValues} from './filters'
 import type {GraphStats} from './hooks/useGraphModel'
 import {localized, type TranslateFn} from './i18n'
+import {guarded} from './registry'
 
 /** e.g. `2 documents · 1 objects · 2 connections · 1 system · system types hidden`. */
 export function statsLine(
@@ -23,7 +24,16 @@ export function statsLine(
   if (stats.system > 0) parts.push(t('toolbar.stats.system', {count: stats.system}))
 
   for (const def of filterDefs) {
-    const note = def.summary?.(selectionFor(filters, def), filterContext)
+    const note = guarded(
+      () => def.summary?.(selectionFor(filters, def), filterContext),
+      undefined,
+      () => ({
+        registry: 'filter',
+        id: def.id,
+        callback: 'summary',
+        outcome: 'its note is left off the stats line',
+      }),
+    )
     if (note) parts.push(note)
   }
 

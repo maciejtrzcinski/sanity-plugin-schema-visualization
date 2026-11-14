@@ -2,7 +2,7 @@
 import {act, renderHook} from '@testing-library/react'
 import {useSyncExternalStore, type ReactNode} from 'react'
 import {route, RouterProvider, type RouterState} from 'sanity/router'
-import {beforeEach, describe, expect, it} from 'vitest'
+import {beforeEach, describe, expect, it, onTestFinished} from 'vitest'
 
 import {graph, makeFilterContext} from '../../test/fixtures'
 import {ConfigProvider} from '../config'
@@ -12,8 +12,8 @@ import {
   type StoredDocumentCounts,
 } from '../documentCounts'
 import {createDefaultFilters, defaultFilterValues} from '../filters'
-import type {SessionPrefs, ViewPrefs} from '../viewPrefs'
-import {usePersistedViewPrefs, useViewState} from './useViewState'
+import {saveViewPrefs, type SessionPrefs, type ViewPrefs} from '../viewPrefs'
+import {usePersistedViewPrefs, useStoredViewPrefs, useViewState} from './useViewState'
 
 const router = route.create('/')
 const systemFilter = createDefaultFilters().find((def) => def.id === 'system')!
@@ -55,6 +55,21 @@ function Wrapper({children}: {children: ReactNode}) {
       <ConfigProvider options={{}}>{children}</ConfigProvider>
     </RouterProvider>
   )
+}
+
+/** What a browser does with site data blocked: reading `localStorage` at all throws. */
+function blockStorage() {
+  const original = Object.getOwnPropertyDescriptor(window, 'localStorage')
+  Object.defineProperty(window, 'localStorage', {
+    configurable: true,
+    get() {
+      throw new DOMException('denied', 'SecurityError')
+    },
+  })
+  onTestFinished(() => {
+    if (original) Object.defineProperty(window, 'localStorage', original)
+    else Reflect.deleteProperty(window, 'localStorage')
+  })
 }
 
 function renderViewState(initialState: RouterState = {}) {
@@ -254,5 +269,51 @@ describe('usePersistedViewPrefs', () => {
 
     rerender({documentCounts: loaded([['post', 99]], 1700000999000)})
     expect(stored(key)?.cache.documentCounts).toEqual(persisted({post: 99}, 1700000999000))
+  })
+
+  it('keeps going when site data is blocked and nothing can be saved', () => {
+    blockStorage()
+    const {rerender} = renderPersisted('prefs:blocked')
+
+    expect(() => rerender({documentCounts: loaded([['post', 47]])})).not.toThrow()
+  })
+})
+
+describe('useStoredViewPrefs', () => {
+  it('finds nothing when site data is blocked, so the view starts from the defaults', () => {
+    blockStorage()
+    const {result} = renderHook(
+      () => {
+        const storedPrefs = useStoredViewPrefs('prefs:blocked')
+        const view = useViewState({
+          nodes: graph.nodes,
+          filterContext: makeFilterContext(),
+          storedPrefs,
+        })
+        return {storedPrefs, view}
+      },
+      {wrapper: Wrapper},
+    )
+
+    expect(result.current.storedPrefs).toBeNull()
+    expect(result.current.view).toMatchObject({
+      filters: defaultFilterValues(createDefaultFilters()),
+      direction: 'LR',
+      compactMode: false,
+    })
+  })
+
+  it('reads back what was saved under the same key', () => {
+    const key = 'prefs:round-trip'
+    onTestFinished(() => window.localStorage.removeItem(key))
+    const filters = defaultFilterValues(createDefaultFilters())
+    saveViewPrefs(window.localStorage, key, {
+      prefs: {compactMode: true, direction: 'TB', filters},
+      cache: {},
+    })
+
+    const {result} = renderHook(() => useStoredViewPrefs(key), {wrapper: Wrapper})
+
+    expect(result.current?.prefs).toMatchObject({compactMode: true, direction: 'TB'})
   })
 })

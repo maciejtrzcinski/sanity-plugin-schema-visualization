@@ -1,7 +1,7 @@
 import {createSchema, defineField, defineType, isObjectSchemaType, type SchemaType} from 'sanity'
-import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
+import {describe, expect, it} from 'vitest'
 
-import {resetBrokenAssumptions} from './compat'
+import {spyOnWarnings, warningAt} from '../test/warnings'
 import {
   collectFieldBadges,
   defaultFieldBadges,
@@ -11,17 +11,6 @@ import {
 } from './fieldBadges'
 import {schemaToGraph} from './schemaToGraph'
 import {readValidation} from './validation'
-
-let warn: ReturnType<typeof vi.spyOn>
-
-beforeEach(() => {
-  resetBrokenAssumptions()
-  warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
-})
-
-afterEach(() => {
-  warn.mockRestore()
-})
 
 /** Badges read a compiled type, so the fixtures go through `createSchema`. */
 function fieldType(field: ReturnType<typeof defineField>): SchemaType {
@@ -204,6 +193,7 @@ describe('collectFieldBadges', () => {
   })
 
   it('skips a throwing badge, keeps the rest, and warns once', () => {
+    const warn = spyOnWarnings()
     const broken: FieldBadgeDef = {
       id: 'broken',
       badge: () => {
@@ -218,8 +208,10 @@ describe('collectFieldBadges', () => {
     ])
     collectFieldBadges(type, ctx, [broken, requiredBadge])
 
-    expect(warn).toHaveBeenCalledTimes(1)
-    expect(String(warn.mock.calls[0]?.[0])).toContain('`broken` field badge threw')
+    expect(warn).toHaveBeenCalledOnce()
+    expect(warningAt(warn)).toContain(
+      '`broken` field badge failed on field `title`, so it is skipped',
+    )
   })
 })
 
