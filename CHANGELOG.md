@@ -5,6 +5,12 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.0.0-beta.6](https://github.com/maciejtrzcinski/sanity-plugin-schema-visualization/compare/v1.0.0-beta.5...v1.0.0-beta.6) (2026-11-14)
+
+### Bug Fixes
+
+- keep the tool running when a registry entry or browser storage fails ([#7](https://github.com/maciejtrzcinski/sanity-plugin-schema-visualization/issues/7)) ([f92269b](https://github.com/maciejtrzcinski/sanity-plugin-schema-visualization/commit/f92269bdc81c90c85cd0ead3fa072dedd169d303))
+
 ## [1.0.0-beta.5](https://github.com/maciejtrzcinski/sanity-plugin-schema-visualization/compare/v1.0.0-beta.4...v1.0.0-beta.5) (2026-11-11)
 
 ### Features
