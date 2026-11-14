@@ -1,5 +1,6 @@
 import {describe, expect, it} from 'vitest'
 
+import {spyOnWarnings, warningAt} from '../test/warnings'
 import {
   activeFilterCount,
   createDefaultFilters,
@@ -153,6 +154,33 @@ describe('nodeMatchesFilters', () => {
   it('falls back to a filter default when its value is missing entirely', () => {
     const node = graphNode({id: 'slug', isSystem: true})
     expect(nodeMatchesFilters(node, {}, defs, ctx())).toBe(false)
+  })
+
+  it('lets every type through a filter whose predicate throws, and warns once', () => {
+    const warn = spyOnWarnings()
+    const broken: FilterDef = {
+      id: 'broken',
+      label: 'Broken',
+      type: 'single',
+      options: [{value: 'all', label: 'All'}],
+      defaultValues: ['all'],
+      urlParam: 'broken',
+      predicate: () => {
+        throw new Error('nope')
+      },
+    }
+    const withBroken = [...defs, broken]
+    const values = defaultFilterValues(withBroken)
+
+    expect(nodeMatchesFilters(graphNode({id: 'post'}), values, withBroken, ctx())).toBe(true)
+    expect(nodeMatchesFilters(graphNode({id: 'author'}), values, withBroken, ctx())).toBe(true)
+    // The other filters still apply.
+    const system = graphNode({id: 'sanity.imageAsset', isSystem: true})
+    expect(nodeMatchesFilters(system, values, withBroken, ctx())).toBe(false)
+    expect(warn).toHaveBeenCalledOnce()
+    expect(warningAt(warn)).toContain(
+      "`broken` filter's `predicate` threw on type `post`, so the type stays visible",
+    )
   })
 
   it('hands a custom predicate the whole graph and the loaded doc counts', () => {

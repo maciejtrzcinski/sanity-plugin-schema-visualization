@@ -9,6 +9,7 @@ import {
 
 import {defaultTranslate, type TranslateFn} from './i18n'
 import {INTRINSIC_FIELD_NAMES} from './intrinsics'
+import {guarded} from './registry'
 import type {FieldLink, FieldOptionSummary} from './types'
 
 export const DEFAULT_MAX_DEPTH = 8
@@ -323,8 +324,32 @@ export function walkFieldType(
       describers,
     )
 
-  const describer = describers.find((d) => d.match(type, ctx)) ?? fallbackDescriber
-  return describer.describe(type, ctx, recurse)
+  const subject = () => `\`${type.name}\` in field \`${ctx.path}\``
+  const describer =
+    describers.find((d) =>
+      guarded(
+        () => d.match(type, ctx),
+        false,
+        () => ({
+          registry: 'field describer',
+          id: d.id,
+          callback: 'match',
+          subject: subject(),
+          outcome: 'the next describer is tried',
+        }),
+      ),
+    ) ?? fallbackDescriber
+  return guarded(
+    () => describer.describe(type, ctx, recurse),
+    fallbackDescriber.describe(type, ctx, recurse),
+    () => ({
+      registry: 'field describer',
+      id: describer.id,
+      callback: 'describe',
+      subject: subject(),
+      outcome: 'it is labelled by its type name alone',
+    }),
+  )
 }
 
 export function rootWalkContext(

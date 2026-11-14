@@ -3,7 +3,7 @@ import type {Schema} from 'sanity'
 import type {ResolvedConfig} from './config'
 import {defaultTranslate, localized, type TranslateFn} from './i18n'
 import {defaultNodeKinds, type NodeKindDef} from './kinds'
-import {indexById, type Tone} from './registry'
+import {guarded, indexById, type Tone} from './registry'
 import type {GraphNode, GraphNodeKind, SchemaGraph} from './types'
 
 /** @public */
@@ -367,7 +367,7 @@ export interface ComputeHealthIssuesOptions {
 }
 
 /**
- * Runs each rule over the graph. A rule that throws is skipped.
+ * Runs each rule over the graph. A rule that throws is skipped and reported once.
  *
  * @public
  */
@@ -391,12 +391,11 @@ export function runHealthRules(
   const issues: HealthIssue[] = []
 
   for (const rule of config.healthRules) {
-    let raw: RawIssue[]
-    try {
-      raw = rule.check(ctx)
-    } catch {
-      continue
-    }
+    const raw = guarded(
+      () => rule.check(ctx),
+      [],
+      () => ({registry: 'health rule', id: rule.id, outcome: 'its issues are left out'}),
+    )
     for (const item of raw) {
       issues.push({
         id: `${rule.id}:${item.key}`,

@@ -1,5 +1,6 @@
 import {describe, expect, it} from 'vitest'
 
+import {spyOnWarnings, warningAt} from '../test/warnings'
 import {
   computeHealthIssues,
   createAttributePathsRule,
@@ -265,7 +266,8 @@ describe('computeHealthIssues', () => {
       expect(issues[0]).toMatchObject({id: 'naming:Post', category: 'naming', severity: 'info'})
     })
 
-    it('skips a rule that throws rather than failing the whole run', () => {
+    it('skips a rule that throws rather than failing the whole run, and warns once', () => {
+      const warn = spyOnWarnings()
       const exploding: HealthRule = {
         id: 'boom',
         label: 'Boom',
@@ -277,8 +279,11 @@ describe('computeHealthIssues', () => {
 
       const g = graph([node({id: 'unused', kind: 'object'})])
       const issues = computeHealthIssues(g, {rules: [exploding, ...defaultHealthRules]})
+      computeHealthIssues(g, {rules: [exploding, ...defaultHealthRules]})
 
       expect(issues.map((i) => i.category)).toEqual(['orphaned-type'])
+      expect(warn).toHaveBeenCalledOnce()
+      expect(warningAt(warn)).toContain('`boom` health rule threw, so its issues are left out')
     })
   })
 

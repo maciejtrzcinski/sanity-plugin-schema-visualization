@@ -133,6 +133,36 @@ says so: it checks the registries it is handed and logs one
 console warning per problem, naming what the mistake costs you. Nothing throws,
 and a warning is reported once per session rather than on every render.
 
+### When an entry throws
+
+A callback that throws costs only what it would have produced, never the tool.
+The plugin catches it, carries on with a fallback, and logs one console warning
+per entry and callback for the session. The warning names the entry, what it was
+called on and what happened instead, and the thrown error follows it for the
+stack.
+
+| Callback                  | What the tool does instead                                      |
+| ------------------------- | --------------------------------------------------------------- |
+| `NodeKindDef.classify`    | Treats it as no match: the next kind, then the catch-all        |
+| `NodeKindDef.baseTypeOf`  | Uses the kind id as the base type                               |
+| `EdgeKindDef.badgeLabel`  | Labels the connection badge with the edge kind id               |
+| `FieldDescriber.match`    | Treats it as no match and tries the next describer              |
+| `FieldDescriber.describe` | Uses `fallbackDescriber`'s result: the bare type name, no edges |
+| `FieldBadgeDef.badge`     | Skips that badge on that field                                  |
+| `NodeBadgeDef.badge`      | Skips that badge on that type                                   |
+| `FilterDef.predicate`     | Lets the type through, so a broken filter never hides anything  |
+| `FilterDef.summary`       | Leaves its note off the stats line                              |
+| `HealthRule.check`        | Reports nothing for that rule                                   |
+
+A describer's fallback applies only at the level that threw: the rest of the
+field's type is still walked, so edges found elsewhere in it are still drawn.
+
+Two failures stay loud on purpose. A `filters` option given as a function runs
+once, when the tool resolves its config, so a throw there is a broken config and
+the tool opens on the error instead of a graph. An `icon` component that throws
+while rendering is a React error, and the tool's error boundary shows it in
+place of the canvas.
+
 ### Custom kinds
 
 A kind is one category of schema type: its labels, colour, icon, the
@@ -469,7 +499,8 @@ recompute (`customNodes` excludes system types; `incomingCount`, `nodesById`
 and `kindById` are prebuilt; `docCountByType` holds the loaded document
 counts, empty until someone loads them) and returns raw issues — `id`,
 `category` and `severity` are filled in around them. A rule that throws is
-skipped rather than taking the panel down.
+skipped rather than taking the panel down — see
+[When an entry throws](#when-an-entry-throws).
 
 `schema` is the compiled schema the graph came from, for what the graph leaves
 out. It's always set in the Studio, but outside it only when you pass one to

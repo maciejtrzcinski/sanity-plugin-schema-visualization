@@ -1,3 +1,5 @@
+import {warnOnce} from './compat'
+
 /**
  * What the ordering helpers key on: every registry entry carries an `id`.
  *
@@ -72,6 +74,40 @@ function indexOfId(defs: readonly Identified[], id: string, helper: string): num
     )
   }
   return at
+}
+
+/** What a warning says about one registry callback that threw. */
+export interface EntryFailure {
+  /** The registry's name for an entry: `field badge`, `kind`. */
+  registry: string
+  id: string
+  /** Named when the entry has more than one callback. */
+  callback?: string
+  /** What it was called on. Left out when the call covers the whole graph. */
+  subject?: string
+  /** What the tool does instead. */
+  outcome: string
+}
+
+/**
+ * `run()`, or `fallback` when it throws: a broken custom entry costs its own
+ * output, not the tool. Warns once per entry and callback; `failure` is only
+ * built once something has thrown.
+ */
+export function guarded<T>(run: () => T, fallback: T, failure: () => EntryFailure): T {
+  try {
+    return run()
+  } catch (error) {
+    const {registry, id, callback, subject, outcome} = failure()
+    const name = callback ? `\`${id}\` ${registry}'s \`${callback}\`` : `\`${id}\` ${registry}`
+    warnOnce(
+      callback ? `${registry}:${id}:${callback}` : `${registry}:${id}`,
+      `The ${name} threw${subject ? ` on ${subject}` : ''}, so ${outcome}. ` +
+        `Further failures from it are not reported.`,
+      error,
+    )
+    return fallback
+  }
 }
 
 export function duplicates(values: readonly string[]): string[] {

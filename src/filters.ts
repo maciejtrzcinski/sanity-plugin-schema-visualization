@@ -5,6 +5,7 @@ import type {ComponentType} from 'react'
 
 import type {TranslateFn} from './i18n'
 import {defaultNodeKinds, type NodeKindDef} from './kinds'
+import {guarded} from './registry'
 import type {GraphNode, SchemaGraph} from './types'
 
 /**
@@ -244,7 +245,20 @@ export function nodeMatchesFilters(
   defs: readonly FilterDef[],
   ctx: FilterContext,
 ): boolean {
-  return defs.every((def) => def.predicate(node, selectionFor(values, def), ctx))
+  return defs.every((def) =>
+    guarded(
+      () => def.predicate(node, selectionFor(values, def), ctx),
+      // A broken filter mustn't hide types.
+      true,
+      () => ({
+        registry: 'filter',
+        id: def.id,
+        callback: 'predicate',
+        subject: `type \`${node.name}\``,
+        outcome: 'the type stays visible',
+      }),
+    ),
+  )
 }
 
 export function sanitizeFilterValues(

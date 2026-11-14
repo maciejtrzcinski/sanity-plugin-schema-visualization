@@ -1,5 +1,5 @@
 import type {TranslateFn} from './i18n'
-import {catchAllOf, type ThemeColor, type Tone} from './registry'
+import {catchAllOf, guarded, type ThemeColor, type Tone} from './registry'
 import type {GraphEdge, GraphEdgeKind} from './types'
 
 /**
@@ -84,5 +84,16 @@ export function catchAllEdgeKind(kinds: readonly EdgeKindDef[] = defaultEdgeKind
 }
 
 export function edgeBadgeLabel(edge: GraphEdge, kind: EdgeKindDef, t: TranslateFn): string {
-  return kind.badgeLabel ? kind.badgeLabel(edge, t) : String(edge.kind)
+  const fallback = String(edge.kind)
+  return guarded(
+    () => kind.badgeLabel?.(edge, t) ?? fallback,
+    fallback,
+    () => ({
+      registry: 'edge kind',
+      id: kind.id,
+      callback: 'badgeLabel',
+      subject: `field \`${edge.source}.${edge.fieldName}\``,
+      outcome: `the badge reads \`${fallback}\``,
+    }),
+  )
 }

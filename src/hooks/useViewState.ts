@@ -27,6 +27,7 @@ import {
 } from '../urlState'
 import {
   loadViewPrefs,
+  safeLocalStorage,
   saveViewPrefs,
   type FeatureCache,
   type SessionPrefs,
@@ -269,7 +270,7 @@ function readFeatureCache(raw: Record<string, unknown>): FeatureCache {
 export function useStoredViewPrefs(storageKey: string): ViewPrefs | null {
   const {filters: filterDefs} = useConfig()
   const [prefs] = useState(() =>
-    loadViewPrefs(window.localStorage, storageKey, filterDefs, readFeatureCache),
+    loadViewPrefs(safeLocalStorage(), storageKey, filterDefs, readFeatureCache),
   )
   return prefs
 }
@@ -312,7 +313,7 @@ export function usePersistedViewPrefs({
       return
     }
     lastSavedRef.current = {storageKey, prefs, documentCounts: lastLoadedRef.current}
-    saveViewPrefs(window.localStorage, storageKey, {
+    saveViewPrefs(safeLocalStorage(), storageKey, {
       prefs,
       cache: {documentCounts: lastLoadedRef.current},
     })

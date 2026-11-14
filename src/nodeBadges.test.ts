@@ -1,5 +1,6 @@
-import {describe, expect, it, vi} from 'vitest'
+import {describe, expect, it} from 'vitest'
 
+import {spyOnWarnings, warningAt} from '../test/warnings'
 import {defaultTranslate} from './i18n'
 import {
   collectNodeBadges,
@@ -158,7 +159,7 @@ describe('collectNodeBadges', () => {
   })
 
   it('skips a throwing badge instead of taking the canvas down, and warns once', () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const warn = spyOnWarnings()
     const badges: NodeBadgeDef[] = [
       {
         id: 'boom',
@@ -172,8 +173,7 @@ describe('collectNodeBadges', () => {
     expect(labels(collectNodeBadges(node(), ctx(), badges))).toEqual(['fine'])
     expect(labels(collectNodeBadges(node({id: 'author'}), ctx(), badges))).toEqual(['fine'])
     expect(warn).toHaveBeenCalledOnce()
-
-    warn.mockRestore()
+    expect(warningAt(warn)).toContain('`boom` node badge threw on type `post`, so it is skipped')
   })
 
   it('lets a caller drop or replace exactly one built-in by id', () => {

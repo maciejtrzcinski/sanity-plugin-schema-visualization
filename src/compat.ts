@@ -7,10 +7,13 @@ export type AssumptionId = 'schema._original' | 'rule._rules' | 'INTRINSIC_FIELD
 
 const reported = new Set<string>()
 
-export function warnOnce(key: string, message: string): void {
+/** `cause`, when given, is logged after the message so the console shows its stack. */
+export function warnOnce(key: string, message: string, cause?: unknown): void {
   if (reported.has(key)) return
   reported.add(key)
-  console.warn(`[schema-visualization] ${message}`)
+  const prefixed = `[schema-visualization] ${message}`
+  if (cause === undefined) console.warn(prefixed)
+  else console.warn(prefixed, cause)
 }
 
 export function reportBrokenAssumption(id: AssumptionId, consequence: string): void {

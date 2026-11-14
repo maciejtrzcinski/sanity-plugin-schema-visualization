@@ -1,5 +1,6 @@
 import {describe, expect, it} from 'vitest'
 
+import {spyOnWarnings, warningAt} from '../test/warnings'
 import {
   catchAllEdgeKind,
   defaultEdgeKinds,
@@ -50,6 +51,24 @@ describe('edgeBadgeLabel', () => {
     expect(edgeBadgeLabel(external, externalReferenceKind, defaultTranslate)).toBe('external ref')
     expect(edgeBadgeLabel({...external, weak: true}, externalReferenceKind, defaultTranslate)).toBe(
       'weak external ref',
+    )
+  })
+
+  it('falls back to the edge’s kind id when `badgeLabel` throws, and warns once', () => {
+    const warn = spyOnWarnings()
+    const broken: EdgeKindDef = {
+      ...referenceKind,
+      badgeLabel: () => {
+        throw new Error('nope')
+      },
+    }
+
+    expect(edgeBadgeLabel(edge(), broken, defaultTranslate)).toBe('reference')
+    expect(edgeBadgeLabel(edge(), broken, defaultTranslate)).toBe('reference')
+    expect(warn).toHaveBeenCalledOnce()
+    expect(warningAt(warn)).toContain(
+      "`reference` edge kind's `badgeLabel` threw on field `post.author`, so the badge reads " +
+        '`reference`',
     )
   })
 

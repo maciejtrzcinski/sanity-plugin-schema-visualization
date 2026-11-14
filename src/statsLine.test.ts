@@ -1,6 +1,7 @@
 import {describe, expect, it} from 'vitest'
 
 import {makeFilterContext, postNode} from '../test/fixtures'
+import {spyOnWarnings, warningAt} from '../test/warnings'
 import {
   createDefaultFilters,
   createKindsFilter,
@@ -53,6 +54,30 @@ describe('statsLine', () => {
   it('does not call system types hidden when the schema has none', () => {
     expect(line({stats: {...stats, system: 0}})).toBe(
       '2 documents · 1 objects · 2 connections · system types hidden',
+    )
+  })
+
+  it('leaves out the note of a filter whose summary throws, keeping the rest', () => {
+    const warn = spyOnWarnings()
+    const broken: FilterDef = {
+      id: 'broken',
+      label: 'Broken',
+      type: 'single',
+      options: [{value: 'all', label: 'All'}],
+      defaultValues: ['all'],
+      urlParam: 'broken',
+      predicate: () => true,
+      summary: () => {
+        throw new Error('nope')
+      },
+    }
+    const defs = [...defaultDefs, broken]
+
+    expect(line({defs, filters: defaultFilterValues(defs)})).toBe(line())
+    line({defs, filters: defaultFilterValues(defs)})
+    expect(warn).toHaveBeenCalledOnce()
+    expect(warningAt(warn)).toContain(
+      "`broken` filter's `summary` threw, so its note is left off the stats line",
     )
   })
 

@@ -1,6 +1,6 @@
-import {warnOnce} from './compat'
 import {defaultTranslate, type TranslateFn} from './i18n'
 import type {NodeAnnotations} from './nodeAnnotations'
+import {guarded} from './registry'
 import type {FieldOptionSummary, GraphNode} from './types'
 
 /**
@@ -177,17 +177,16 @@ export function collectNodeBadges(
   const collected: CollectedNodeBadge[] = []
 
   for (const def of badges) {
-    let badge: NodeBadge | undefined
-    try {
-      badge = def.badge(node, context)
-    } catch {
-      warnOnce(
-        `node-badge:${def.id}`,
-        `The \`${def.id}\` node badge threw on type \`${node.name}\`, so it is skipped there. ` +
-          `Further failures from this badge are not reported.`,
-      )
-      continue
-    }
+    const badge = guarded(
+      () => def.badge(node, context),
+      undefined,
+      () => ({
+        registry: 'node badge',
+        id: def.id,
+        subject: `type \`${node.name}\``,
+        outcome: 'it is skipped there',
+      }),
+    )
     if (badge) collected.push({...badge, id: def.id})
   }
 
