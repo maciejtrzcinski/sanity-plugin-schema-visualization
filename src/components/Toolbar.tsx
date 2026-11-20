@@ -21,13 +21,13 @@ import {
   type FilterDef,
   type FilterValues,
 } from '../filters'
+import type {GraphStats} from '../graphModel'
 import {severityTone} from '../healthRules'
-import type {GraphStats} from '../hooks/useGraphModel'
 import {useTranslate} from '../hooks/useTranslate'
 import type {ViewState} from '../hooks/useViewState'
 import {localized, type TranslateFn} from '../i18n'
 import {statsLine} from '../statsLine'
-import type {GraphNodeKind} from '../types'
+import type {FocusCandidate} from '../visibleGraph'
 
 const SEARCH_DEBOUNCE_MS = 200
 
@@ -51,7 +51,7 @@ export interface ToolbarProps {
   view: ViewState
   filterContext: FilterContext
   stats: GraphStats
-  focusOptions: Array<{id: string; title: string; isSystem: boolean; kind: GraphNodeKind}>
+  focusOptions: FocusCandidate[]
   healthIssueCount: number
   healthWarningCount: number
   showHealthPanel: boolean

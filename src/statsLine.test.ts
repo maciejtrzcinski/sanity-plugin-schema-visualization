@@ -8,7 +8,7 @@ import {
   defaultFilterValues,
   type FilterDef,
 } from './filters'
-import type {GraphStats} from './hooks/useGraphModel'
+import type {GraphStats} from './graphModel'
 import {defaultTranslate} from './i18n'
 import {defaultNodeKinds, documentKind, objectKind, otherKind} from './kinds'
 import {statsLine} from './statsLine'
