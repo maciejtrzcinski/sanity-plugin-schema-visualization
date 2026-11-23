@@ -12,13 +12,14 @@ import {documentCountAnnotations} from './documentCounts/annotations'
 import {DocumentCountsButton} from './documentCounts/DocumentCountsButton'
 import {useDocumentCounts} from './documentCounts/useDocumentCounts'
 import {svgExportFileName} from './exportSvg'
-import {nodeMatchesFilters} from './filters'
+import {countWarnings} from './graphModel'
 import {useCreateDocumentTarget} from './hooks/useCreateDocumentTarget'
 import {useGraphModel, useSchemaGraph} from './hooks/useGraphModel'
 import {useTranslate} from './hooks/useTranslate'
 import {usePersistedViewPrefs, useStoredViewPrefs, useViewState} from './hooks/useViewState'
 import {NO_ANNOTATIONS} from './nodeAnnotations'
 import {buildViewPrefsStorageKey} from './viewPrefs'
+import {focusCandidates} from './visibleGraph'
 
 const HEALTH_PANEL_INSET = 12
 
@@ -108,10 +109,7 @@ function SchemaVisualization({toolName}: {toolName: string}) {
 
   const model = useGraphModel(graph, documentCounts.state.counts, schema)
   const {healthIssues, nodesById, issuesByNodeId, stats, filterContext} = model
-  const healthWarningCount = useMemo(
-    () => healthIssues.filter((issue) => issue.severity === 'warning').length,
-    [healthIssues],
-  )
+  const healthWarningCount = useMemo(() => countWarnings(healthIssues), [healthIssues])
 
   const annotations = useMemo(
     () =>
@@ -153,17 +151,14 @@ function SchemaVisualization({toolName}: {toolName: string}) {
     }
   }, [toast, t])
 
-  // Only types the filters show; the current focus keeps its label regardless.
   const focusOptions = useMemo(
     () =>
-      graph.nodes
-        .filter(
-          (n) =>
-            n.id === view.focusNodeId ||
-            nodeMatchesFilters(n, view.filters, config.filters, filterContext),
-        )
-        .sort((a, b) => a.title.localeCompare(b.title))
-        .map((n) => ({id: n.id, title: n.title, isSystem: n.isSystem, kind: n.kind})),
+      focusCandidates(graph, {
+        filters: view.filters,
+        filterDefs: config.filters,
+        filterContext,
+        focusNodeId: view.focusNodeId,
+      }),
     [graph, view.focusNodeId, view.filters, config.filters, filterContext],
   )
 

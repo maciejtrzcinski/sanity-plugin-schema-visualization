@@ -13,7 +13,7 @@ import {
   type FilterDef,
   type FilterValues,
 } from '../filters'
-import type {GraphStats} from '../hooks/useGraphModel'
+import type {GraphStats} from '../graphModel'
 import type {ViewState} from '../hooks/useViewState'
 import {defaultNodeKinds, documentKind, objectKind, otherKind} from '../kinds'
 import {Toolbar, type ToolbarProps} from './Toolbar'

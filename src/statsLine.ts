@@ -1,5 +1,5 @@
 import {selectionFor, type FilterContext, type FilterDef, type FilterValues} from './filters'
-import type {GraphStats} from './hooks/useGraphModel'
+import type {GraphStats} from './graphModel'
 import {localized, type TranslateFn} from './i18n'
 import {guarded} from './registry'
 

@@ -26,7 +26,7 @@ import {
 
 import {useConfig} from '../config'
 import {svgExportFileName} from '../exportSvg'
-import {nodeMatchesFilters, type FilterContext, type FilterValues} from '../filters'
+import type {FilterContext, FilterValues} from '../filters'
 import type {FlowEdge, FlowNode} from '../flowModel'
 import {computeStyledEdges, computeStyledNodes, DIM_CLASSES} from '../graphStyling'
 import {useTranslate} from '../hooks/useTranslate'
@@ -35,6 +35,7 @@ import {LayoutController} from '../layoutController'
 import type {NodeAnnotations} from '../nodeAnnotations'
 import {cssColor} from '../registry'
 import type {SchemaGraph} from '../types'
+import {visibleSubgraph} from '../visibleGraph'
 import {ClusterBackgrounds} from './ClusterBackground'
 import {ExportControls} from './ExportControls'
 import {FieldEdge} from './FieldEdge'
@@ -120,18 +121,6 @@ function shapeKey(graph: SchemaGraph): string {
   return `${graph.nodes.map((n) => n.id).join('\n')}\0${graph.edges.map((e) => e.id).join('\n')}`
 }
 
-function isolateNode(graph: SchemaGraph, focusNodeId: string): SchemaGraph {
-  const keep = new Set<string>([focusNodeId])
-  for (const edge of graph.edges) {
-    if (edge.source === focusNodeId) keep.add(edge.target)
-    if (edge.target === focusNodeId) keep.add(edge.source)
-  }
-  return {
-    nodes: graph.nodes.filter((n) => keep.has(n.id)),
-    edges: graph.edges.filter((e) => keep.has(e.source) && keep.has(e.target)),
-  }
-}
-
 function GraphCanvasInner({
   graph,
   filters,
@@ -160,29 +149,10 @@ function GraphCanvasInner({
   // Destructured: the context object is rebuilt whenever document counts load.
   const {issueCountByNodeId, warningCountByNodeId} = filterContext
 
-  const visibleGraph = useMemo<SchemaGraph>(() => {
-    let g = graph
-    const keep = new Set(
-      g.nodes
-        .filter((n) => nodeMatchesFilters(n, filters, filterDefs, filterContext))
-        .map((n) => n.id),
-    )
-    // Filters never drop the focus, so the canvas keeps a node for it.
-    if (focusNodeId) keep.add(focusNodeId)
-    if (selectedNodeId) keep.add(selectedNodeId)
-    g = {
-      nodes: g.nodes.filter((n) => keep.has(n.id)),
-      edges: g.edges.filter((e) => keep.has(e.source) && keep.has(e.target)),
-    }
-    if (focusNodeId && g.nodes.some((n) => n.id === focusNodeId)) {
-      g = isolateNode(g, focusNodeId)
-      if (selectedNodeId && !g.nodes.some((n) => n.id === selectedNodeId)) {
-        const selected = graph.nodes.find((n) => n.id === selectedNodeId)
-        if (selected) g = {nodes: [...g.nodes, selected], edges: g.edges}
-      }
-    }
-    return g
-  }, [graph, filters, filterDefs, filterContext, focusNodeId, selectedNodeId])
+  const visibleGraph = useMemo(
+    () => visibleSubgraph(graph, {filters, filterDefs, filterContext, focusNodeId, selectedNodeId}),
+    [graph, filters, filterDefs, filterContext, focusNodeId, selectedNodeId],
+  )
 
   const minimapNodeColor = useCallback(
     (n: FlowNode) => cssColor((kindById.get(n.data.node.kind) ?? catchAll).color),
