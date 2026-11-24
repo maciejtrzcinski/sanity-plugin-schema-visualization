@@ -141,8 +141,10 @@ export function Toolbar({
   const {filters: filterDefs, kindById, catchAll} = useConfig()
   const t = useTranslate()
 
-  // Debounced: `searchQuery` restyles every node. It's only ever set from here, so no re-sync.
-  const [localSearch, setLocalSearch] = useState(searchQuery)
+  // Debounced: `searchQuery` restyles every node. Only a pending draft is local; otherwise
+  // the box shows `searchQuery`, so back navigation or a shared link updates it too.
+  const [searchDraft, setSearchDraft] = useState<string | null>(null)
+  const searchValue = searchDraft ?? searchQuery
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
@@ -152,14 +154,17 @@ export function Toolbar({
   }, [])
 
   const handleSearchChange = (value: string) => {
-    setLocalSearch(value)
+    setSearchDraft(value)
     if (debounceRef.current) clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(() => onSearchQueryChange(value), SEARCH_DEBOUNCE_MS)
+    debounceRef.current = setTimeout(() => {
+      setSearchDraft(null)
+      onSearchQueryChange(value)
+    }, SEARCH_DEBOUNCE_MS)
   }
 
   const handleSearchClear = () => {
     if (debounceRef.current) clearTimeout(debounceRef.current)
-    setLocalSearch('')
+    setSearchDraft(null)
     onSearchQueryChange('')
   }
 
@@ -193,9 +198,9 @@ export function Toolbar({
           <TextInput
             icon={SearchIcon}
             placeholder={t('toolbar.search-placeholder')}
-            value={localSearch}
+            value={searchValue}
             onChange={(event) => handleSearchChange(event.currentTarget.value)}
-            clearButton={localSearch.length > 0}
+            clearButton={searchValue.length > 0}
             onClear={handleSearchClear}
           />
         </Box>

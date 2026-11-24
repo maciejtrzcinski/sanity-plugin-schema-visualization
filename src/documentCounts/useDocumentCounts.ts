@@ -1,5 +1,5 @@
 import {useToast} from '@sanity/ui/toast'
-import {useCallback, useMemo, useState} from 'react'
+import {useCallback, useEffect, useMemo, useRef, useState} from 'react'
 import {useClient, usePerspective} from 'sanity'
 
 import {useTranslate} from '../hooks/useTranslate'
@@ -64,8 +64,17 @@ export function useDocumentCounts({
     enabled && cached ? fromCache(cached) : INITIAL_DOCUMENT_COUNTS_STATE,
   )
 
+  // A perspective switch re-enables the button mid-load, so loads can overlap; only
+  // the latest may land. Aborted on unmount too, or a late failure toasts elsewhere.
+  const requestRef = useRef<AbortController | null>(null)
+  useEffect(() => () => requestRef.current?.abort(), [])
+
   const load = useCallback(async () => {
     if (typeNames.length === 0) return
+    requestRef.current?.abort()
+    const request = new AbortController()
+    requestRef.current = request
+    const {signal} = request
     const requested = perspective
     setLoaded((prev) =>
       prev.perspective === requested
@@ -74,9 +83,10 @@ export function useDocumentCounts({
     )
     try {
       const [counts, breakdown] = await Promise.all([
-        clients.current.fetch(buildDocumentCountsQuery(typeNames)),
-        clients.raw.fetch(buildDocumentStatusQuery(typeNames)),
+        clients.current.fetch(buildDocumentCountsQuery(typeNames), {}, {signal}),
+        clients.raw.fetch(buildDocumentStatusQuery(typeNames), {}, {signal}),
       ])
+      if (signal.aborted) return
       setLoaded({
         status: 'loaded',
         counts: parseDocumentCountsResponse(counts),
@@ -85,6 +95,7 @@ export function useDocumentCounts({
         fetchedAt: Date.now(),
       })
     } catch (err) {
+      if (signal.aborted) return
       const message = err instanceof Error ? err.message : t('document-counts.error-unknown')
       // Keep the counts already on screen: a failed refresh shouldn't blank them.
       setLoaded((prev) => ({...prev, status: 'error', error: message}))

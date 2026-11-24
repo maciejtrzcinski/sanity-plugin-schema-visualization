@@ -92,6 +92,48 @@ describe('useDocumentCounts', () => {
     expect(result.current.load).toBe(first)
   })
 
+  it('drops a superseded load, so a slow answer for an old perspective can’t land last', async () => {
+    let answerDrafts: (value: unknown) => void = () => {}
+    fetchIn.current.mockImplementationOnce(() => new Promise((resolve) => (answerDrafts = resolve)))
+    const {result, rerender} = renderHook(() => useDocumentCounts({enabled: true, typeNames}))
+    let draftsLoad: Promise<void> = Promise.resolve()
+    act(() => {
+      draftsLoad = result.current.load()
+    })
+
+    perspective.current = RELEASE
+    rerender()
+    fetchIn.current.mockResolvedValueOnce({post: 5})
+    await act(() => result.current.load())
+    await waitFor(() => expect(result.current.state.counts.get('post')).toBe(5))
+
+    expect(fetchIn.current.mock.calls[0][2].signal.aborted).toBe(true)
+    answerDrafts({post: 2})
+    await act(() => draftsLoad)
+
+    expect(result.current.state.counts.get('post')).toBe(5)
+    expect(result.current.state.perspective).toBe('rSpring,drafts')
+  })
+
+  it('abandons a load when the tool unmounts, without a toast', async () => {
+    fetchIn.raw.mockImplementationOnce(
+      (_query: string, _params: unknown, {signal}: {signal: AbortSignal}) =>
+        new Promise((_, reject) =>
+          signal.addEventListener('abort', () => reject(new Error('The operation was aborted'))),
+        ),
+    )
+    const {result, unmount} = renderHook(() => useDocumentCounts({enabled: true, typeNames}))
+    let pending: Promise<void> = Promise.resolve()
+    act(() => {
+      pending = result.current.load()
+    })
+
+    unmount()
+    await pending
+
+    expect(toast.push).not.toHaveBeenCalled()
+  })
+
   it('reports a failed load in a localized toast and keeps the counts it had', async () => {
     const {result} = renderHook(() => useDocumentCounts({enabled: true, typeNames}))
     await act(() => result.current.load())

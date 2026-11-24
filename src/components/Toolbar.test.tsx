@@ -154,6 +154,31 @@ describe('Toolbar', () => {
       expect(onSearchQueryChange).toHaveBeenCalledExactlyOnceWith('')
       expect(input.value).toBe('')
     })
+
+    it('shows a query that arrives from the URL, such as on back navigation', () => {
+      const {rerender} = renderWithProviders(<Toolbar {...props({searchQuery: 'post'})} />)
+      const input = screen.getByPlaceholderText<HTMLInputElement>('Search types or fields…')
+      expect(input.value).toBe('post')
+
+      rerender(<Toolbar {...props({searchQuery: 'author'})} />)
+      expect(input.value).toBe('author')
+
+      rerender(<Toolbar {...props({searchQuery: ''})} />)
+      expect(input.value).toBe('')
+    })
+
+    it('follows back navigation to a query it sent earlier', async () => {
+      const {rerender} = renderWithProviders(<Toolbar {...props()} />)
+      const input = screen.getByPlaceholderText<HTMLInputElement>('Search types or fields…')
+      await userEvent.type(input, 'post')
+      await vi.advanceTimersByTimeAsync(200)
+      rerender(<Toolbar {...props({searchQuery: 'post'})} />)
+
+      rerender(<Toolbar {...props({searchQuery: 'author'})} />)
+      expect(input.value).toBe('author')
+      rerender(<Toolbar {...props({searchQuery: 'post'})} />)
+      expect(input.value).toBe('post')
+    })
   })
 
   describe('filter menu', () => {
